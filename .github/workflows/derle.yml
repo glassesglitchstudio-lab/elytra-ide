@@ -53,12 +53,16 @@ jobs:
         working-directory: vscode-kaynak
         run: |
           npm install --no-audit --no-fund --build-from-source=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Derle (Windows x64 arşiv)
         shell: bash
         working-directory: vscode-kaynak
         run: |
           npm run gulp vscode-win32-x64-archive
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Artifact yükle
         uses: actions/upload-artifact@v4
