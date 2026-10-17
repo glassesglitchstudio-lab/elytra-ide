@@ -16,7 +16,7 @@ env:
 jobs:
   derle:
     name: Windows x64
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 180
 
     steps:
