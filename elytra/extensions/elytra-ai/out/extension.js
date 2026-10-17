@@ -172,7 +172,6 @@ class BaslangicPaneli {
 				}
 				case 'anahtar': vscode.commands.executeCommand('elytra.setKey'); break;
 				case 'ayarlar': vscode.commands.executeCommand('workbench.action.openSettings', 'elytra'); break;
-				case 'ide': vscode.commands.executeCommand('workbench.action.files.openFolder'); break;
 			}
 		});
 
@@ -220,9 +219,6 @@ body{display:flex;height:100vh;background:#141414}
   display:flex;align-items:center;padding:0 16px;gap:10px}
 #ustbar .baslik{font-size:12.5px;color:#a8a8a8;flex:1;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#ideBtn{background:#1f1f1f;border:1px solid #333;color:#d0d0d0;border-radius:7px;
-  padding:6px 13px;font-size:12px;transition:all .12s}
-#ideBtn:hover{background:#2a2a2a;border-color:#4a9eff;color:#fff}
 
 /* ── Sohbet ── */
 #sohbet{flex:1;overflow-y:auto;padding:26px 0}
@@ -291,7 +287,6 @@ body{display:flex;height:100vh;background:#141414}
 <div id="ana">
   <div id="ustbar">
     <span class="baslik" id="ustBaslik">Elytra</span>
-    <button id="ideBtn">Open IDE &rarr;</button>
   </div>
 
   <div id="bos">
@@ -383,7 +378,6 @@ document.getElementById('yeni').onclick = function(){ vs.postMessage({tip:'yeni'
 document.getElementById('btnAnahtar').onclick = function(){ vs.postMessage({tip:'anahtar'}); };
 document.getElementById('btnAyarlar').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
 document.getElementById('ak').onclick = function(e){ e.preventDefault(); vs.postMessage({tip:'anahtar'}); };
-document.getElementById('ideBtn').onclick = function(){ vs.postMessage({tip:'ide'}); };
 document.getElementById('modelBtn').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
 document.getElementById('ekle').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
 
