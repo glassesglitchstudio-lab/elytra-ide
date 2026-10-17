@@ -48,6 +48,13 @@ jobs:
           bash scripts/uygula.sh vscode-kaynak
           python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('nameShort =',d['nameShort'])"
 
+      - name: Microsoft'a özel bileşenleri çıkar (Copilot SDK)
+        shell: bash
+        run: |
+          bash scripts/ozel-cikar.sh vscode-kaynak
+          echo "--- dogrulama ---"
+          ls vscode-kaynak/extensions/ | grep -c copilot || echo "copilot yok (dogru)"
+
       - name: Bağımlılıkları kur
         shell: bash
         working-directory: vscode-kaynak
