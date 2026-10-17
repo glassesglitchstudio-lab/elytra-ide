@@ -1,0 +1,52 @@
+{
+	"name": "elytra-ai",
+	"displayName": "Elytra AI",
+	"description": "Elytra AI — sohbet, satır içi düzenleme ve ajan (Cursor tarzı, ücretsiz)",
+	"version": "0.1.0",
+	"publisher": "elytra-ai",
+	"license": "MIT",
+	"engines": { "vscode": "^1.90.0" },
+	"categories": ["AI", "Programming Languages", "Other"],
+	"activationEvents": ["onStartupFinished"],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{ "command": "elytra.chat", "title": "Elytra: AI Sohbet", "category": "Elytra" },
+			{ "command": "elytra.inlineEdit", "title": "Elytra: Satır İçi Düzenle (AI)", "category": "Elytra" },
+			{ "command": "elytra.explain", "title": "Elytra: Kodu Açıkla", "category": "Elytra" },
+			{ "command": "elytra.setKey", "title": "Elytra: API Anahtarı Ayarla", "category": "Elytra" }
+		],
+		"keybindings": [
+			{ "command": "elytra.chat", "key": "ctrl+shift+a", "mac": "cmd+shift+a" },
+			{ "command": "elytra.inlineEdit", "key": "ctrl+k", "mac": "cmd+k", "when": "editorTextFocus" }
+		],
+		"configuration": {
+			"title": "Elytra AI",
+			"properties": {
+				"elytra.saglayici": {
+					"type": "string",
+					"default": "nous",
+					"enum": ["nous", "openrouter", "groq", "deepseek", "mistral", "cerebras", "google"],
+					"description": "AI sağlayıcısı"
+				},
+				"elytra.model": {
+					"type": "string",
+					"default": "meituan/longcat-2.5-preview:free",
+					"description": "Model kimliği"
+				},
+				"elytra.apiAnahtari": {
+					"type": "string",
+					"default": "",
+					"description": "Sağlayıcı API anahtarı (ayarlarda saklanır)"
+				}
+			}
+		}
+	},
+	"scripts": {
+		"compile": "node ../../node_modules/typescript/bin/tsc -p ./",
+		"watch": "node ../../node_modules/typescript/bin/tsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.90.0"
+	}
+}
