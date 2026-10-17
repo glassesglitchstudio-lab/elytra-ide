@@ -73,6 +73,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Baslatici olustur (sandbox segfault cozumu)
+        shell: bash
+        run: |
+          HEDEF="VSCode-win32-x64"
+          if [ ! -d "$HEDEF" ]; then
+            echo "[!] $HEDEF bulunamadi"; ls -d VSCode-* 2>/dev/null; exit 1
+          fi
+          cat > "$HEDEF/Elytra Code Baslat.cmd" <<'BAT'
+          @echo off
+          REM Elytra Code baslatici — Electron sandbox bu derlemede
+          REM pencere yuklenirken segfault veriyor (exit 139).
+          REM --no-sandbox ile sorunsuz calisir.
+          cd /d "%~dp0"
+          start "" "Elytra Code.exe" --no-sandbox %*
+          BAT
+          echo "[ok] Baslatici olusturuldu"
+          ls -la "$HEDEF/Elytra Code Baslat.cmd"
+
       - name: Artifact yükle
         uses: actions/upload-artifact@v4
         with:
