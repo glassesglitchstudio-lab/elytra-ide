@@ -1,0 +1,82 @@
+name: Elytra Code Derle
+
+# PC'yi YORMAZ — derleme GitHub sunucularında çalışır.
+# VS Code kaynağını çeker, Elytra katmanını uygular, Windows .exe üretir.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  derle:
+    name: Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Elytra katmanını al
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: VS Code kaynağını çek (shallow)
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vscode.git vscode-kaynak
+          echo "kaynak boyutu:"
+          du -sh vscode-kaynak
+
+      - name: Elytra katmanını uygula
+        shell: bash
+        run: |
+          bash scripts/uygula.sh vscode-kaynak
+          echo "--- marka doğrulama ---"
+          python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('nameShort =',d['nameShort']);print('applicationName =',d['applicationName'])"
+
+      - name: Bağımlılıkları kur
+        shell: bash
+        working-directory: vscode-kaynak
+        run: |
+          npm install --no-audit --no-fund
+        env:
+          npm_config_yes: true
+
+      - name: Derle (Windows x64 arşiv)
+        shell: bash
+        working-directory: vscode-kaynak
+        run: |
+          npm run gulp vscode-win32-x64-archive
+
+      - name: Artifact yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: elytra-code-win32-x64
+          path: VSCode-win32-x64/
+          retention-days: 30
+          if-no-files-found: warn
+          compression-level: 6
+
+      - name: Özet
+        shell: bash
+        run: |
+          {
+            echo "## Elytra Code derlemesi tamam"
+            echo ""
+            echo "**Artifact:** \`elytra-code-win32-x64\`"
+            echo ""
+            echo "İndir → klasörü aç → \`Elytra Code.exe\` çalıştır"
+            echo ""
+            echo "### Marka"
+            echo '```'
+            python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('isim     :',d['nameLong']);print('protokol :',d['urlProtocol']);print('galeri   :',d['extensionsGallery']['serviceUrl'])"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
