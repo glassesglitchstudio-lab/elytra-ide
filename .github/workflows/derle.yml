@@ -56,11 +56,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Derle (Windows x64 arşiv)
+      - name: Derle (Windows x64)
         shell: bash
         working-directory: vscode-kaynak
         run: |
-          npm run gulp vscode-win32-x64-archive
+          npm run gulp vscode-win32-x64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
