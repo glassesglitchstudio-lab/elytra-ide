@@ -52,11 +52,7 @@ jobs:
         shell: bash
         working-directory: vscode-kaynak
         run: |
-          npm config set msvs_version 2022
           npm install --no-audit --no-fund --build-from-source=false
-        env:
-          GYP_MSVS_VERSION: '2022'
-          npm_config_msvs_version: '2022'
 
       - name: Derle (Windows x64 arşiv)
         shell: bash
