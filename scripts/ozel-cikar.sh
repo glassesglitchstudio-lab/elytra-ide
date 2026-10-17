@@ -31,7 +31,21 @@ else
 fi
 
 # 2) Build yapilandirmasindaki Copilot referanslarini temizle
-PYTHONIOENCODING=utf-8 python3 - "$KAYNAK" <<'PY'
+# python tespiti — calistigini dogrula (Windows Store stub'larini atla)
+PYBIN=""
+for aday in python python3 py; do
+  if command -v "$aday" >/dev/null 2>&1 && "$aday" -c "pass" >/dev/null 2>&1; then
+    PYBIN="$aday"
+    break
+  fi
+done
+if [ -z "$PYBIN" ]; then
+  echo "    [!] calisan python bulunamadi"
+  exit 1
+fi
+echo "    [ok] python: $PYBIN"
+
+PYTHONIOENCODING=utf-8 "$PYBIN" - "$KAYNAK" <<'PY'
 import sys, pathlib, re
 
 kaynak = pathlib.Path(sys.argv[1])
@@ -99,8 +113,8 @@ if [ -d "$KAYNAK/extensions/copilot" ]; then
   echo "    [!] copilot klasoru hala var"
   exit 1
 fi
-if grep -q "prepareCopilotRipgrepShimTask(platform" "$KAYNAK/build/gulpfile.vscode.ts" 2>/dev/null; then
-  echo "    [!] gulpfile'da copilot shim gorevi hala cagriliyor"
+if grep -q "prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)" "$KAYNAK/build/gulpfile.vscode.ts" 2>/dev/null; then
+  echo "    [!] gulpfile'da copilot shim gorevi hala CAGRILIYOR"
   exit 1
 fi
 echo "    [ok] Copilot tamamen cikarildi"
