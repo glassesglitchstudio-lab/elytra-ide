@@ -31,6 +31,7 @@
 			]
 		},
 		"commands": [
+			{ "command": "elytra.baslangic", "title": "Elytra: Ana Ekran (Sohbet)", "category": "Elytra", "icon": "$(sparkle)" },
 			{ "command": "elytra.chat", "title": "Sohbeti Aç", "category": "Elytra", "icon": "$(comment-discussion)" },
 			{ "command": "elytra.inlineEdit", "title": "Satır İçi Düzenle (AI)", "category": "Elytra", "icon": "$(edit)" },
 			{ "command": "elytra.explain", "title": "Kodu Açıkla (AI)", "category": "Elytra", "icon": "$(book)" },

@@ -18,6 +18,11 @@
 		"configurationDefaults": {
 			"workbench.colorTheme": "Elytra Dark",
 			"workbench.iconTheme": "vs-seti",
+			"workbench.startupEditor": "none",
+			"workbench.tips.enabled": false,
+			"workbench.welcomePage.walkthroughs.openOnInstall": false,
+			"workbench.editor.empty.hint": "hidden",
+			"window.commandCenter": false,
 			"editor.fontSize": 13,
 			"editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', monospace",
 			"editor.minimap.enabled": true,
