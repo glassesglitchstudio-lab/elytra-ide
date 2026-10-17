@@ -51,17 +51,8 @@ else
 fi
 
 # 4) Microsoft'a özel marka kalıntılarını temizle
-if [ -f "$KAYNAK/product.json" ]; then
-  python3 - "$KAYNAK/product.json" <<'PY'
-import json, sys, pathlib
-p = pathlib.Path(sys.argv[1])
-d = json.loads(p.read_text(encoding='utf-8'))
-for k in ('extensionRecommendations','extensionImportantTips','keymapExtensionTips',
-          'languageExtensionTips','webExtensionTips','configurationExtensionTips'):
-    d.pop(k, None)
-p.write_text(json.dumps(d, indent='\t', ensure_ascii=False) + '\n', encoding='utf-8')
-PY
-  echo "    [ok] Microsoft öneri/trial alanları temizlendi"
-fi
+# NOT: product.json'a sonradan DOKUNULMAZ.
+# builtInExtensions / trustedExtensionAuthAccess alanlari derleme icin ZORUNLU;
+# silinirse "Cannot read properties of undefined (reading 'filter')" hatasi cikar.
 
 echo "==> Elytra katmanı hazır."
