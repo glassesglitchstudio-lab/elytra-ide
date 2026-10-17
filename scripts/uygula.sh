@@ -30,6 +30,11 @@ mkdir -p "$KAYNAK/extensions/elytra-ai"
 cp -r "$BURASI/elytra/extensions/elytra-ai/." "$KAYNAK/extensions/elytra-ai/"
 echo "    [ok] extensions/elytra-ai (AI uzantısı)"
 
+# 2b) Tema uzantısı (Cursor tarzı)
+mkdir -p "$KAYNAK/extensions/elytra-theme"
+cp -r "$BURASI/elytra/extensions/elytra-theme/." "$KAYNAK/extensions/elytra-theme/"
+echo "    [ok] extensions/elytra-theme (Elytra Dark teması)"
+
 # 3) Derleme listesine ekle
 if ! grep -q "elytra-ai" "$KAYNAK/build/npm/dirs.ts" 2>/dev/null; then
   python3 - "$KAYNAK/build/npm/dirs.ts" <<'PY'

@@ -1,0 +1,35 @@
+{
+	"name": "elytra-theme",
+	"displayName": "Elytra Tema",
+	"description": "Elytra koyu tema — Cursor tarzı (mavi durum çubuğu, #1e1e1e zemin)",
+	"version": "0.1.0",
+	"publisher": "elytra-ai",
+	"license": "MIT",
+	"engines": { "vscode": "^1.90.0" },
+	"categories": ["Themes"],
+	"contributes": {
+		"themes": [
+			{
+				"label": "Elytra Dark",
+				"uiTheme": "vs-dark",
+				"path": "./themes/elytra-dark.json"
+			}
+		],
+		"configurationDefaults": {
+			"workbench.colorTheme": "Elytra Dark",
+			"workbench.iconTheme": "vs-seti",
+			"editor.fontSize": 13,
+			"editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', monospace",
+			"editor.minimap.enabled": true,
+			"editor.wordWrap": "on",
+			"editor.tabSize": 4,
+			"editor.renderWhitespace": "selection",
+			"editor.cursorBlinking": "smooth",
+			"editor.smoothScrolling": true,
+			"workbench.tree.indent": 14,
+			"workbench.list.smoothScrolling": true,
+			"window.titleBarStyle": "custom",
+			"telemetry.telemetryLevel": "off"
+		}
+	}
+}
