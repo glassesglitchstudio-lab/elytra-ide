@@ -73,6 +73,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Uzanti paketlendi mi? (dogrulama)
+        shell: bash
+        run: |
+          HEDEF="VSCode-win32-x64"
+          HATA=0
+          for yol in \
+            "extensions/elytra-ai/package.json" \
+            "extensions/elytra-ai/out/extension.js" \
+            "extensions/elytra-ai/resources/elytra.svg" \
+            "extensions/elytra-theme/package.json" \
+            "extensions/elytra-theme/themes/elytra-dark.json"
+          do
+            if [ -f "$HEDEF/resources/app/$yol" ]; then
+              echo "  [ok] $yol ($(wc -c < "$HEDEF/resources/app/$yol") byte)"
+            else
+              echo "  [!] EKSIK: $yol"
+              HATA=1
+            fi
+          done
+          if [ "$HATA" -ne 0 ]; then
+            echo "##[error] Elytra uzantilari pakete girmemis!"
+            exit 1
+          fi
+          echo "Tum Elytra uzantilari pakette."
+
       - name: Baslatici olustur (sandbox segfault cozumu)
         shell: bash
         run: |

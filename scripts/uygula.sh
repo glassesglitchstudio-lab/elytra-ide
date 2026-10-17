@@ -55,4 +55,33 @@ fi
 # builtInExtensions / trustedExtensionAuthAccess alanlari derleme icin ZORUNLU;
 # silinirse "Cannot read properties of undefined (reading 'filter')" hatasi cikar.
 
+# 5) DOGRULAMA — uzanti gercekten calisabilir durumda mi?
+# (Onceki derlemede uzanti TypeScript'ti ve DERLENMEMISTI: out/ yoktu,
+#  bu yuzden hic yuklenmiyordu. Artik duz JS ve burada dogrulaniyor.)
+echo "==> Dogrulama"
+HATA=0
+if [ ! -f "$KAYNAK/extensions/elytra-ai/out/extension.js" ]; then
+  echo "    [!] out/extension.js YOK — uzanti yuklenmez!"
+  HATA=1
+else
+  echo "    [ok] out/extension.js mevcut ($(wc -c < "$KAYNAK/extensions/elytra-ai/out/extension.js") byte)"
+fi
+if [ ! -f "$KAYNAK/extensions/elytra-ai/resources/elytra.svg" ]; then
+  echo "    [!] kenar cubugu ikonu YOK"
+  HATA=1
+else
+  echo "    [ok] resources/elytra.svg mevcut"
+fi
+# package.json'da viewsContainers var mi? (kenar cubugu gorunumu)
+if ! grep -q '"viewsContainers"' "$KAYNAK/extensions/elytra-ai/package.json" 2>/dev/null; then
+  echo "    [!] viewsContainers YOK — kenar cubugu gorunumu olmaz!"
+  HATA=1
+else
+  echo "    [ok] viewsContainers (kenar cubugu gorunumu)"
+fi
+if [ "$HATA" -ne 0 ]; then
+  echo "    [!] DOGRULAMA BASARISIZ"
+  exit 1
+fi
+
 echo "==> Elytra katmanı hazır."

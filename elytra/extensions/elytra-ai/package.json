@@ -1,25 +1,55 @@
 {
 	"name": "elytra-ai",
 	"displayName": "Elytra AI",
-	"description": "Elytra AI — sohbet, satır içi düzenleme ve ajan (Cursor tarzı, ücretsiz)",
-	"version": "0.1.0",
+	"description": "Cursor tarzı yapay zeka asistanı — kenar çubuğu sohbeti, satır içi düzenleme, kod açıklama. Gerçek API çağrısı yapar, sahte cevap üretmez.",
+	"version": "1.0.0",
 	"publisher": "elytra-ai",
 	"license": "MIT",
 	"engines": { "vscode": "^1.90.0" },
-	"categories": ["AI", "Programming Languages", "Other"],
-	"activationEvents": ["onStartupFinished"],
+	"categories": ["AI", "Programming Languages"],
+	"activationEvents": ["onStartupFinished", "onView:elytra.sohbetGorunum"],
 	"main": "./out/extension.js",
 	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "elytra",
+					"title": "Elytra AI",
+					"icon": "resources/elytra.svg"
+				}
+			]
+		},
+		"views": {
+			"elytra": [
+				{
+					"type": "webview",
+					"id": "elytra.sohbetGorunum",
+					"name": "Sohbet",
+					"icon": "resources/elytra.svg",
+					"contextualTitle": "Elytra AI"
+				}
+			]
+		},
 		"commands": [
-			{ "command": "elytra.chat", "title": "Elytra: AI Sohbet", "category": "Elytra" },
-			{ "command": "elytra.inlineEdit", "title": "Elytra: Satır İçi Düzenle (AI)", "category": "Elytra" },
-			{ "command": "elytra.explain", "title": "Elytra: Kodu Açıkla", "category": "Elytra" },
-			{ "command": "elytra.setKey", "title": "Elytra: API Anahtarı Ayarla", "category": "Elytra" }
+			{ "command": "elytra.chat", "title": "Sohbeti Aç", "category": "Elytra", "icon": "$(comment-discussion)" },
+			{ "command": "elytra.inlineEdit", "title": "Satır İçi Düzenle (AI)", "category": "Elytra", "icon": "$(edit)" },
+			{ "command": "elytra.explain", "title": "Kodu Açıkla (AI)", "category": "Elytra", "icon": "$(book)" },
+			{ "command": "elytra.setKey", "title": "API Anahtarı Ayarla", "category": "Elytra", "icon": "$(key)" },
+			{ "command": "elytra.temizle", "title": "Sohbeti Temizle", "category": "Elytra", "icon": "$(clear-all)" }
 		],
 		"keybindings": [
 			{ "command": "elytra.chat", "key": "ctrl+shift+a", "mac": "cmd+shift+a" },
 			{ "command": "elytra.inlineEdit", "key": "ctrl+k", "mac": "cmd+k", "when": "editorTextFocus" }
 		],
+		"menus": {
+			"view/title": [
+				{ "command": "elytra.temizle", "when": "view == elytra.sohbetGorunum", "group": "navigation" }
+			],
+			"editor/context": [
+				{ "command": "elytra.inlineEdit", "when": "editorHasSelection", "group": "elytra@1" },
+				{ "command": "elytra.explain", "when": "editorHasSelection", "group": "elytra@2" }
+			]
+		},
 		"configuration": {
 			"title": "Elytra AI",
 			"properties": {
@@ -27,7 +57,7 @@
 					"type": "string",
 					"default": "nous",
 					"enum": ["nous", "openrouter", "groq", "deepseek", "mistral", "cerebras", "google"],
-					"description": "AI sağlayıcısı"
+					"description": "AI sağlayıcısı (Ollama/yerel model YOK — yalnızca bulut)."
 				},
 				"elytra.model": {
 					"type": "string",
@@ -38,15 +68,24 @@
 					"type": "string",
 					"default": "",
 					"description": "Sağlayıcı API anahtarı (ayarlarda saklanır)"
+				},
+				"elytra.sicaklik": {
+					"type": "number",
+					"default": 0.3,
+					"minimum": 0,
+					"maximum": 2,
+					"description": "Yanıt yaratıcılığı (0 = kararlı, 2 = yaratıcı)."
+				},
+				"elytra.sistemMesaji": {
+					"type": "string",
+					"default": "Sen Elytra AI'sın — kod yazmada uzman, kısa ve net Türkçe yanıt veren bir asistansın. Kod verirken yalnızca kodu ver, gereksiz açıklama ekleme.",
+					"description": "AI'ın kişiliğini belirleyen sistem mesajı."
 				}
 			}
 		}
 	},
 	"scripts": {
-		"compile": "node ../../node_modules/typescript/bin/tsc -p ./",
-		"watch": "node ../../node_modules/typescript/bin/tsc -watch -p ./"
-	},
-	"devDependencies": {
-		"@types/vscode": "^1.90.0"
+		"compile": "node -e \"require('fs').accessSync('out/extension.js')\"",
+		"vscode:prepublish": "node -e \"require('fs').accessSync('out/extension.js')\""
 	}
 }
