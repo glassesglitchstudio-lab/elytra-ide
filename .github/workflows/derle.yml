@@ -8,6 +8,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  npm_config_build_from_source: 'false'
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
 jobs:
   derle:
     name: Windows x64
@@ -28,27 +33,30 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: MSVC (Visual Studio C++) ortamını kur
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: VS Code kaynağını çek (shallow)
         shell: bash
         run: |
           git clone --depth 1 https://github.com/microsoft/vscode.git vscode-kaynak
-          echo "kaynak boyutu:"
           du -sh vscode-kaynak
 
       - name: Elytra katmanını uygula
         shell: bash
         run: |
           bash scripts/uygula.sh vscode-kaynak
-          echo "--- marka doğrulama ---"
-          python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('nameShort =',d['nameShort']);print('applicationName =',d['applicationName'])"
+          python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('nameShort =',d['nameShort'])"
 
       - name: Bağımlılıkları kur
         shell: bash
         working-directory: vscode-kaynak
         run: |
-          npm install --no-audit --no-fund
+          npm config set msvs_version 2022
+          npm install --no-audit --no-fund --build-from-source=false
         env:
-          npm_config_yes: true
+          GYP_MSVS_VERSION: '2022'
+          npm_config_msvs_version: '2022'
 
       - name: Derle (Windows x64 arşiv)
         shell: bash
@@ -73,7 +81,7 @@ jobs:
             echo ""
             echo "**Artifact:** \`elytra-code-win32-x64\`"
             echo ""
-            echo "İndir → klasörü aç → \`Elytra Code.exe\` çalıştır"
+            echo "İndir, klasörü aç, \`Elytra Code.exe\` çalıştır"
             echo ""
             echo "### Marka"
             echo '```'
