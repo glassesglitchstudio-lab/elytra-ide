@@ -25,18 +25,18 @@ const SAGLAYICILAR = {
 	mistral:    { url: 'https://api.mistral.ai/v1', ad: 'Mistral AI' },
 	cerebras:   { url: 'https://api.cerebras.ai/v1', ad: 'Cerebras Hızlı Çıkarım' },
 	google:     { url: 'https://generativelanguage.googleapis.com/v1beta/openai', ad: 'Google Gemini' },
-	gulmez:     { url: 'https://commitments-uncertainty-logan-homepage.trycloudflare.com/v1', ad: 'GülmezÇetiner 0.1-Pro (Canlı vLLM)' }
+	gulmez:     { url: 'https://commitments-uncertainty-logan-homepage.trycloudflare.com/v1', ad: 'GulmezCetiner 0.1-Pro (Canli vLLM)' }
 };
 
 const MODEL_KATALOGU = [
-	{ id: 'anthropic/claude-3.5-sonnet', ad: 'Claude 3.5 Sonnet', saglayici: 'openrouter', rozet: 'Cursor Ref', tip: 'pro', aciklama: 'Yüksek kodlama doğruluğu ve mantık' },
-	{ id: 'deepseek/deepseek-chat:free', ad: 'DeepSeek V3', saglayici: 'openrouter', rozet: 'Ücretsiz', tip: 'free', aciklama: 'Yüksek zeka, hızlı yanıt ve kod uzmanı' },
-	{ id: 'deepseek/deepseek-r1:free', ad: 'DeepSeek R1 (Reasoning)', saglayici: 'openrouter', rozet: 'Düşünce', tip: 'reasoning', aciklama: 'Derin düşünme ve adım adım doğrulama' },
-	{ id: 'gemini-2.5-flash', ad: 'Gemini 2.5 Flash', saglayici: 'google', rozet: 'Ultra Hızlı', tip: 'fast', aciklama: 'Google son nesil yüksek hızlı kodlama' },
-	{ id: 'qwen/qwen-2.5-coder-32b-instruct', ad: 'Qwen 2.5 Coder 32B', saglayici: 'openrouter', rozet: 'Coder', tip: 'pro', aciklama: 'Programlama ve refactor için özel optimize' },
-	{ id: 'meituan/longcat-2.5-preview:free', ad: 'LongCat 2.5 Preview', saglayici: 'openrouter', rozet: 'Hafif', tip: 'free', aciklama: 'Hızlı ve dengeli genel asistan' },
-	{ id: 'llama-3.3-70b-versatile', ad: 'Llama 3.3 70B', saglayici: 'groq', rozet: 'Groq LPU', tip: 'fast', aciklama: 'Anında yanıt veren açık model' },
-	{ id: 'gulmez-27b', ad: 'GülmezÇetiner 27B', saglayici: 'gulmez', rozet: '0.1-Pro', tip: 'pro', aciklama: 'Özel eğitilmiş taşıyıcı çift beyin modeli' }
+	{ id: 'anthropic/claude-3.5-sonnet', ad: 'Claude 3.5 Sonnet', saglayici: 'openrouter', rozet: 'Cursor Ref', tip: 'pro', aciklama: 'Yuksek kodlama dogrulugu ve mantik' },
+	{ id: 'deepseek/deepseek-chat:free', ad: 'DeepSeek V3', saglayici: 'openrouter', rozet: 'Ucretsiz', tip: 'free', aciklama: 'Yuksek zeka, hizli yanit ve kod uzmani' },
+	{ id: 'deepseek/deepseek-r1:free', ad: 'DeepSeek R1 (Reasoning)', saglayici: 'openrouter', rozet: 'Dusunce', tip: 'reasoning', aciklama: 'Derin dusunme ve adim adim dogrulama' },
+	{ id: 'gemini-2.5-flash', ad: 'Gemini 2.5 Flash', saglayici: 'google', rozet: 'Ultra Hizli', tip: 'fast', aciklama: 'Google son nesil yuksek hizli kodlama' },
+	{ id: 'qwen/qwen-2.5-coder-32b-instruct', ad: 'Qwen 2.5 Coder 32B', saglayici: 'openrouter', rozet: 'Coder', tip: 'pro', aciklama: 'Programlama ve refactor icin ozel optimize' },
+	{ id: 'meituan/longcat-2.5-preview:free', ad: 'LongCat 2.5 Preview', saglayici: 'openrouter', rozet: 'Hafif', tip: 'free', aciklama: 'Hizli ve dengeli genel asistan' },
+	{ id: 'llama-3.3-70b-versatile', ad: 'Llama 3.3 70B', saglayici: 'groq', rozet: 'Groq LPU', tip: 'fast', aciklama: 'Aninda yanit veren acik model' },
+	{ id: 'gulmez-27b', ad: 'GulmezCetiner 27B', saglayici: 'gulmez', rozet: '0.1-Pro', tip: 'pro', aciklama: 'Ozel egitilmis tasiyici cift beyin modeli' }
 ];
 
 const MENTION_ONERILERI = [
