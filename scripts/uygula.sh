@@ -51,17 +51,29 @@ else
 fi
 
 # 3b) Sandbox segfault kalıcı çözümü (Elytra Code.exe doğrudan çift tıklanınca çökmemesi için)
-if [ -f "$KAYNAK/src/mainImpl.ts" ]; then
-  python3 - "$KAYNAK/src/mainImpl.ts" <<'PY'
+if [ -f "$KAYNAK/src/main.ts" ]; then
+  python3 - "$KAYNAK/src/main.ts" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1])
 s = p.read_text(encoding='utf-8')
-if "app.enableSandbox();" in s:
-    s = s.replace("app.enableSandbox();", "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');")
+if "no-sandbox" not in s:
+    s = "import { app } from 'electron';\napp.commandLine.appendSwitch('no-sandbox');\napp.commandLine.appendSwitch('disable-gpu-sandbox');\n" + s
     p.write_text(s, encoding='utf-8')
-    print("    [ok] src/mainImpl.ts (no-sandbox yerleşik olarak enjekte edildi)")
+    print("    [ok] src/main.ts (en erken aşamada no-sandbox eklendi)")
 else:
-    print("    [--] src/mainImpl.ts (zaten no-sandbox var)")
+    print("    [--] src/main.ts (zaten no-sandbox var)")
+PY
+fi
+
+if [ -f "$KAYNAK/src/mainImpl.ts" ]; then
+  python3 - "$KAYNAK/src/mainImpl.ts" <<'PY'
+import sys, pathlib, re
+p = pathlib.Path(sys.argv[1])
+s = p.read_text(encoding='utf-8')
+s = re.sub(r'if\s*\([^)]*sandbox[^)]*\)\s*\{\s*app\.enableSandbox\(\);\s*\}', "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');", s)
+s = s.replace("app.enableSandbox();", "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');")
+p.write_text(s, encoding='utf-8')
+print("    [ok] src/mainImpl.ts (enableSandbox tamamen kaldırıldı)")
 PY
 fi
 
