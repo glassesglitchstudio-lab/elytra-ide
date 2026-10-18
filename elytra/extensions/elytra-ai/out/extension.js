@@ -3,13 +3,12 @@
  * İKİ YÜZEY:
  *   1) BASLANGIC SAYFASI (elytra.baslangic) — sohbet merkezli ana ekran.
  *      Antigravity'deki gibi: ortada buyuk prompt kutusu, model secici,
- *      konusma gecmisi raili. Uygulama acilinca OTOMATIK acilir.
+ *      konusma gecmisi raili, @ baglam ve / komut menuleri.
  *   2) KENAR CUBUGU (elytra.sohbetGorunum) — kalici sohbet paneli.
  *
- * Duz JS: derleme adimi YOK. Onceki surum TypeScript'ti, derlenmedigi icin
- * hic yuklenmiyordu.
- *
+ * Duz JS: derleme adimi YOK.
  * SAHTE CEVAP URETMEZ — gercek saglayici API'sine cagri yapar.
+ * ASLA Ollama / yerel model YOK — yalnizca yuksek hizli bulut API'leri.
  */
 
 const vscode = require('vscode');
@@ -24,6 +23,38 @@ const SAGLAYICILAR = {
 	google:     { url: 'https://generativelanguage.googleapis.com/v1beta/openai', ad: 'Google' },
 };
 
+const MODEL_KATALOGU = [
+	{ id: 'meituan/longcat-2.5-preview:free', ad: 'LongCat 2.5 Preview', saglayici: 'openrouter', rozet: 'Ücretsiz', aciklama: 'Hızlı ve dengeli genel asistan' },
+	{ id: 'deepseek/deepseek-chat:free', ad: 'DeepSeek V3', saglayici: 'openrouter', rozet: 'Ücretsiz', aciklama: 'Güçlü kodlama ve akıl yürütme' },
+	{ id: 'deepseek/deepseek-r1:free', ad: 'DeepSeek R1', saglayici: 'openrouter', rozet: 'Düşünce', aciklama: 'Derin muhakeme ve adım adım analiz' },
+	{ id: 'gemini-2.5-flash', ad: 'Gemini 2.5 Flash', saglayici: 'google', rozet: 'En Yeni', aciklama: 'Ultra hızlı ve gelişmiş kodlama' },
+	{ id: 'gemini-2.0-flash', ad: 'Gemini 2.0 Flash', saglayici: 'google', rozet: 'Hızlı', aciklama: 'Düşük gecikme, yüksek verim' },
+	{ id: 'qwen/qwen-2.5-coder-32b-instruct', ad: 'Qwen 2.5 Coder 32B', saglayici: 'openrouter', rozet: 'Kod Uzmanı', aciklama: 'Programlama ve refactor için optimize' },
+	{ id: 'anthropic/claude-3.5-sonnet', ad: 'Claude 3.5 Sonnet', saglayici: 'openrouter', rozet: 'Pro Kod', aciklama: 'Cursor seviyesinde kod üretimi' },
+	{ id: 'nousresearch/hermes-3-llama-3.1-70b', ad: 'Hermes 3 (70B)', saglayici: 'nous', rozet: 'Nous', aciklama: 'Açık zeka ve karmaşık talimatlar' },
+	{ id: 'llama-3.3-70b-versatile', ad: 'Llama 3.3 70B', saglayici: 'groq', rozet: 'Yüksek Hız', aciklama: 'Groq LPU ile anında yanıt' },
+	{ id: 'deepseek-chat', ad: 'DeepSeek Chat V3', saglayici: 'deepseek', rozet: 'Resmi', aciklama: 'Doğrudan DeepSeek API\'si' },
+	{ id: 'codestral-latest', ad: 'Codestral', saglayici: 'mistral', rozet: 'Mistral', aciklama: 'Kod tamamlama ve üretim' }
+];
+
+const BAGLAM_KOMUTLARI = [
+	{ id: 'files', ad: '@Files', ipucu: 'Proje dosyasını bağlam olarak ekle', ikon: '📁' },
+	{ id: 'code', ad: '@Code', ipucu: 'Aktif editördeki seçili kodu ekle', ikon: '📝' },
+	{ id: 'codebase', ad: '@Codebase', ipucu: 'Açık çalışma alanı özetini ekle', ikon: '🧠' },
+	{ id: 'docs', ad: '@Docs', ipucu: 'Kütüphane veya dil dokümantasyonu', ikon: '📚' },
+	{ id: 'git', ad: '@Git', ipucu: 'Son değişiklikler ve git durumu', ikon: '🔀' },
+	{ id: 'web', ad: '@Web', ipucu: 'Web arama bağlamı', ikon: '🌐' }
+];
+
+const SLASH_KOMUTLARI = [
+	{ id: 'edit', ad: '/edit', ipucu: 'Kodu veya dosyayı talimatlara göre düzenle', ikon: '⚡' },
+	{ id: 'explain', ad: '/explain', ipucu: 'Kodun mantığını ve mimarisini açıkla', ikon: '💡' },
+	{ id: 'fix', ad: '/fix', ipucu: 'Hataları ve uyarıları tespit edip onar', ikon: '🔧' },
+	{ id: 'test', ad: '/test', ipucu: 'Birim testleri ve test senaryoları üret', ikon: '🧪' },
+	{ id: 'review', ad: '/review', ipucu: 'Kod kalitesi, güvenlik ve performans incelemesi', ikon: '🛡️' },
+	{ id: 'clear', ad: '/clear', ipucu: 'Sohbet geçmişini sıfırla', ikon: '🗑️' }
+];
+
 /** Tum sohbetler — { id, baslik, mesajlar: [{role, content}] } */
 let konusmalar = [];
 let aktifId = null;
@@ -33,8 +64,8 @@ let baslangicPaneli = undefined; // baslangic sayfasi webview
 function ayar() {
 	const c = vscode.workspace.getConfiguration('elytra');
 	return {
-		saglayici: c.get('saglayici', 'nous'),
-		model: c.get('model', ''),
+		saglayici: c.get('saglayici', 'openrouter'),
+		model: c.get('model', 'meituan/longcat-2.5-preview:free'),
 		anahtar: c.get('apiAnahtari', ''),
 		sicaklik: c.get('sicaklik', 0.3),
 		sistem: c.get('sistemMesaji', ''),
@@ -56,7 +87,7 @@ function aktif() {
 async function aiSor(mesajlar) {
 	const a = ayar();
 	if (!a.anahtar || !a.anahtar.trim()) {
-		throw new Error('API anahtarı yok. "API Anahtarı Ayarla" komutunu çalıştır ya da anahtar düğmesine bas.');
+		throw new Error('API anahtarı yok. "Anahtar" düğmesine basarak sağlayıcı anahtarınızı ekleyin.');
 	}
 	const s = SAGLAYICILAR[a.saglayici];
 	if (!s) { throw new Error('Bilinmeyen sağlayıcı: ' + a.saglayici); }
@@ -83,14 +114,59 @@ async function aiSor(mesajlar) {
 	return icerik;
 }
 
+/** Proje dosyalarını ara ve listele */
+async function projeDosyalariGetir() {
+	try {
+		const dosyalar = await vscode.workspace.findFiles('**/*', '**/node_modules/**', 35);
+		return dosyalar.map(d => vscode.workspace.asRelativePath(d));
+	} catch (_) {
+		return [];
+	}
+}
+
+/** Aktif editördeki kod bağlamını getir */
+function aktifEditorBaglami() {
+	const ed = vscode.window.activeTextEditor;
+	if (!ed) return null;
+	const secim = ed.selection;
+	const kod = secim.isEmpty ? ed.document.getText() : ed.document.getText(secim);
+	const dosyaYolu = vscode.workspace.asRelativePath(ed.document.uri);
+	return { dosya: dosyaYolu, secimVar: !secim.isEmpty, kod: kod.slice(0, 4000) };
+}
+
 /** Sohbete mesaj gönder, sonucu iki yüzeye de yayınla. */
 async function gonderVeYayinla(k, metin) {
+	let sonMetin = metin;
+
+	// /clear komutu kontrolü
+	if (metin.trim() === '/clear') {
+		k.mesajlar = [];
+		yayinla({ tip: 'konusma', id: k.id, mesajlar: [], konusmalar: konusmaOzeti() });
+		return;
+	}
+
+	// @code veya /edit bağlamını otomatik zenginleştir
+	if (metin.includes('@Code') || metin.startsWith('/edit') || metin.startsWith('/explain') || metin.startsWith('/fix') || metin.startsWith('/test')) {
+		const baglam = aktifEditorBaglami();
+		if (baglam && baglam.kod) {
+			sonMetin = metin + '\n\n[Aktif Kod Bağlamı: ' + baglam.dosya + (baglam.secimVar ? ' (Seçili Bölüm)' : '') + ']\n```\n' + baglam.kod + '\n```';
+		}
+	}
+
 	k.mesajlar.push({ role: 'user', content: metin });
 	if (k.baslik === 'Yeni konuşma' && metin.length > 2) {
 		k.baslik = metin.slice(0, 42) + (metin.length > 42 ? '…' : '');
 	}
 	try {
-		const yanit = await aiSor(k.mesajlar);
+		// Model API'sine zenginleştirilmiş son metin gider
+		const gonderilecekMesajlar = k.mesajlar.map((m, idx) => {
+			if (idx === k.mesajlar.length - 1 && m.role === 'user') {
+				return { role: 'user', content: sonMetin };
+			}
+			return m;
+		});
+
+		const yanit = await aiSor(gonderilecekMesajlar);
 		k.mesajlar.push({ role: 'assistant', content: yanit });
 		yayinla({ tip: 'yanit', metin: yanit, konusmalar: konusmaOzeti() });
 	} catch (e) {
@@ -121,10 +197,14 @@ body{
   font-size:13px;overflow:hidden;
 }
 button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2b2b2b;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3b3b3b}
 `;
 
 // ─────────────────────────────────────────────────────────────
-// 1) BAŞLANGIÇ SAYFASI — sohbet merkezli ana ekran
+// 1) BAŞLANGIÇ SAYFASI — Antigravity tarzı ana ekran
 // ─────────────────────────────────────────────────────────────
 class BaslangicPaneli {
 	static goster(context) {
@@ -170,6 +250,21 @@ class BaslangicPaneli {
 					});
 					break;
 				}
+				case 'modelDegistir': {
+					const c = vscode.workspace.getConfiguration('elytra');
+					await c.update('model', m.model, vscode.ConfigurationTarget.Global);
+					if (m.saglayici) {
+						await c.update('saglayici', m.saglayici, vscode.ConfigurationTarget.Global);
+					}
+					vscode.window.showInformationMessage('Elytra Model: ' + m.model);
+					panel.webview.postMessage({ tip: 'modelGuncellendi', model: m.model, saglayici: m.saglayici });
+					break;
+				}
+				case 'dosyaListesiIste': {
+					const dosyalar = await projeDosyalariGetir();
+					panel.webview.postMessage({ tip: 'dosyaListesi', dosyalar: dosyalar });
+					break;
+				}
 				case 'anahtar': vscode.commands.executeCommand('elytra.setKey'); break;
 				case 'ayarlar': vscode.commands.executeCommand('workbench.action.openSettings', 'elytra'); break;
 			}
@@ -181,6 +276,10 @@ class BaslangicPaneli {
 	static html() {
 		const a = ayar();
 		const sagAd = (SAGLAYICILAR[a.saglayici] || {}).ad || a.saglayici;
+		const katalogJson = JSON.stringify(MODEL_KATALOGU);
+		const baglamJson = JSON.stringify(BAGLAM_KOMUTLARI);
+		const slashJson = JSON.stringify(SLASH_KOMUTLARI);
+
 		return `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
@@ -189,7 +288,7 @@ body{display:flex;height:100vh;background:#141414}
 
 /* ── Sol rail ── */
 #rail{width:238px;flex-shrink:0;border-right:1px solid #262626;
-  display:flex;flex-direction:column;background:#171717}
+  display:flex;flex-direction:column;background:#171717;user-select:none}
 #railUst{padding:14px 14px 10px;border-bottom:1px solid #262626}
 #marka{font-size:15px;font-weight:700;letter-spacing:.3px;color:#fff;
   display:flex;align-items:center;gap:8px}
@@ -214,11 +313,13 @@ body{display:flex;height:100vh;background:#141414}
 .mini:hover{background:#212121;color:#e4e4e4;border-color:#3d3d3d}
 
 /* ── Orta alan ── */
-#ana{flex:1;display:flex;flex-direction:column;min-width:0}
+#ana{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 #ustbar{height:42px;flex-shrink:0;border-bottom:1px solid #262626;
-  display:flex;align-items:center;padding:0 16px;gap:10px}
+  display:flex;align-items:center;padding:0 16px;gap:10px;background:#171717}
 #ustbar .baslik{font-size:12.5px;color:#a8a8a8;flex:1;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ustbar .rozetKucuk{font-size:11px;color:#4a9eff;background:rgba(74,158,255,.09);
+  padding:3px 8px;border-radius:5px;border:1px solid rgba(74,158,255,.2)}
 
 /* ── Sohbet ── */
 #sohbet{flex:1;overflow-y:auto;padding:26px 0}
@@ -237,19 +338,23 @@ body{display:flex;height:100vh;background:#141414}
   border-radius:4px;font-size:12.5px}
 .mesaj pre code{background:none;padding:0}
 
-/* ── Boş durum: ORTADA BÜYÜK MARKA ── */
+/* ── Boş durum ── */
 #bos{flex:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:0 24px 40px;gap:14px}
+  justify-content:center;padding:0 24px 40px;gap:14px;user-select:none}
 #bosMarka{font-size:31px;font-weight:700;letter-spacing:-.5px;color:#fff;
   display:flex;align-items:center;gap:12px}
 #bosMarka .nokta{width:16px;height:16px;border-radius:50%;background:#4a9eff;
   box-shadow:0 0 24px #4a9eff}
 #bosAlt{color:#6b6b6b;font-size:13.5px}
+.ornekRozetler{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.ornekRozet{background:#1c1c1c;border:1px solid #2a2a2a;color:#8a8a8a;border-radius:6px;
+  padding:5px 10px;font-size:11.5px;cursor:pointer;transition:all .12s}
+.ornekRozet:hover{background:#232323;color:#e4e4e4;border-color:#3a3a3a}
 
 /* ── Prompt kutusu ── */
-#promptAlani{width:100%;max-width:780px;flex-shrink:0;padding:0 24px 18px;margin:0 auto}
+#promptAlani{width:100%;max-width:780px;flex-shrink:0;padding:0 24px 18px;margin:0 auto;position:relative}
 #kutu{background:#1c1c1c;border:1px solid #303030;border-radius:14px;
-  padding:4px;transition:border-color .15s,box-shadow .15s}
+  padding:4px;transition:border-color .15s,box-shadow .15s;position:relative}
 #kutu:focus-within{border-color:#4a9eff;box-shadow:0 0 0 3px rgba(74,158,255,.12)}
 #t{width:100%;background:none;border:none;color:#e8e8e8;resize:none;outline:none;
   padding:13px 15px 6px;font-family:inherit;font-size:14px;line-height:1.55;
@@ -258,20 +363,63 @@ body{display:flex;height:100vh;background:#141414}
 #kutuAlt{display:flex;align-items:center;gap:7px;padding:5px 8px 8px}
 .rozet{background:#232323;border:1px solid #2e2e2e;color:#a0a0a0;border-radius:7px;
   padding:5px 10px;font-size:11.5px;display:flex;align-items:center;gap:6px;
-  transition:all .12s}
-.rozet:hover{background:#2a2a2a;color:#e4e4e4}
+  transition:all .12s;cursor:pointer;user-select:none}
+.rozet:hover{background:#2a2a2a;color:#e4e4e4;border-color:#3d3d3d}
 .rozet .ok{font-size:9px;color:#6b6b6b}
 #gonderBtn{margin-left:auto;background:#4a9eff;color:#fff;border:none;border-radius:9px;
   width:34px;height:34px;display:flex;align-items:center;justify-content:center;
-  font-size:16px;transition:filter .12s}
+  font-size:16px;transition:filter .12s;cursor:pointer}
 #gonderBtn:hover{filter:brightness(1.15)}
 #gonderBtn:disabled{opacity:.35;cursor:default;filter:none}
-#ipucu{text-align:center;color:#4d4d4d;font-size:11px;margin-top:9px}
+#ipucu{text-align:center;color:#4d4d4d;font-size:11px;margin-top:9px;user-select:none}
 #ipucu kbd{background:#1f1f1f;border:1px solid #2e2e2e;border-radius:4px;
   padding:1px 5px;font-family:Consolas,monospace;font-size:10.5px}
 #uyari{max-width:780px;margin:0 auto 12px;padding:9px 13px;border-radius:9px;
   background:rgba(255,170,0,.09);border:1px solid rgba(255,170,0,.22);color:#e8b04b;
   font-size:12px;display:${a.anahtar && a.anahtar.trim() ? 'none' : 'block'}}
+
+/* ── Antigravity Popover Menüleri (@ ve /) ── */
+.acilirMenu{position:absolute;bottom:calc(100% + 8px);left:24px;width:340px;
+  background:#1a1a1a;border:1px solid #333;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.6);
+  z-index:100;overflow:hidden;display:none;max-height:280px;display:none;flex-direction:column}
+.acilirMenu.aktif{display:flex}
+.acilirBaslik{padding:8px 12px;font-size:11px;color:#777;border-bottom:1px solid #282828;
+  background:#161616;display:flex;justify-content:space-between}
+.acilirListe{overflow-y:auto;padding:4px}
+.acilirOge{padding:7px 10px;border-radius:6px;display:flex;align-items:center;gap:9px;
+  cursor:pointer;font-size:12px;color:#ccc;transition:background .1s}
+.acilirOge:hover, .acilirOge.secili{background:#282828;color:#fff}
+.acilirOge .ikon{font-size:13px;width:16px;text-align:center}
+.acilirOge .ad{font-weight:600;color:#4a9eff}
+.acilirOge .ipucuMetin{color:#777;font-size:11px;margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+
+/* ── Antigravity Model Seçici Modal ── */
+#modelSeciciModal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);
+  display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(3px)}
+#modelSeciciModal.aktif{display:flex}
+#modelKutusu{width:460px;background:#181818;border:1px solid #333;border-radius:14px;
+  box-shadow:0 20px 48px rgba(0,0,0,.8);overflow:hidden;display:flex;flex-direction:column;max-height:85vh}
+#modelKutusuUst{padding:14px 16px;border-bottom:1px solid #282828;display:flex;align-items:center;gap:10px}
+#modelKutusuUst .baslik{font-size:14px;font-weight:700;color:#fff}
+#modelKutusuUst .kapat{margin-left:auto;background:none;border:none;color:#777;font-size:16px;cursor:pointer}
+#modelKutusuUst .kapat:hover{color:#fff}
+#modelArama{padding:8px 14px;background:#121212;border:none;border-bottom:1px solid #262626;
+  color:#fff;font-family:inherit;font-size:12.5px;outline:none}
+#modelArama::placeholder{color:#555}
+#modelListesi{flex:1;overflow-y:auto;padding:8px}
+.modelOge{padding:9px 12px;border-radius:8px;margin-bottom:4px;cursor:pointer;
+  border:1px solid transparent;transition:all .12s}
+.modelOge:hover{background:#222;border-color:#303030}
+.modelOge.secili{background:#1f2838;border-color:#388bfd}
+.modelOgeUst{display:flex;align-items:center;gap:8px}
+.modelOgeAd{font-weight:600;font-size:12.5px;color:#fff}
+.modelOgeRozet{font-size:10px;padding:1px 6px;border-radius:4px;background:#2a2a2a;color:#aaa}
+.modelOge.secili .modelOgeRozet{background:#24446c;color:#79c0ff}
+.modelOgeSag{margin-left:auto;font-size:11px;color:#666}
+.modelOgeAciklama{font-size:11.5px;color:#777;margin-top:3px}
+#modelKutusuAlt{padding:10px 14px;border-top:1px solid #262626;background:#141414;
+  font-size:11px;color:#888;display:flex;align-items:center;justify-content:space-between}
+#modelKutusuAlt .uyariOllama{color:#f48771;font-weight:600}
 </style></head><body>
 
 <div id="rail">
@@ -287,31 +435,78 @@ body{display:flex;height:100vh;background:#141414}
 <div id="ana">
   <div id="ustbar">
     <span class="baslik" id="ustBaslik">Elytra</span>
+    <span class="rozetKucuk" id="ustModelRozet">${a.model || 'meituan/longcat-2.5-preview:free'}</span>
   </div>
 
   <div id="bos">
     <div id="bosMarka"><span class="nokta"></span>Elytra</div>
     <div id="bosAlt">Ne inşa edelim?</div>
+    <div class="ornekRozetler">
+      <div class="ornekRozet" data-komut="/edit ">⚡ /edit Kodu düzenle</div>
+      <div class="ornekRozet" data-komut="/explain ">💡 /explain Kodu açıkla</div>
+      <div class="ornekRozet" data-komut="@Code ">📝 @Code Aktif kod bağlamı</div>
+      <div class="ornekRozet" data-komut="@Files ">📁 @Files Proje dosyaları</div>
+    </div>
   </div>
 
   <div id="sohbet" style="display:none"><div id="sohbetIc"></div></div>
 
   <div id="promptAlani">
     <div id="uyari">API anahtarı yok &mdash; <a href="#" id="ak" style="color:#e8b04b">buraya tıkla</a> ve ekle.</div>
+
+    <!-- @ Bağlam Menüsü -->
+    <div class="acilirMenu" id="baglamMenu">
+      <div class="acilirBaslik"><span>BAĞLAM EKLE (@)</span><span>Esc ile kapat</span></div>
+      <div class="acilirListe" id="baglamListe"></div>
+    </div>
+
+    <!-- / Komut Menüsü -->
+    <div class="acilirMenu" id="slashMenu">
+      <div class="acilirBaslik"><span>KOMUTLAR (/)</span><span>Esc ile kapat</span></div>
+      <div class="acilirListe" id="slashListe"></div>
+    </div>
+
     <div id="kutu">
-      <textarea id="t" placeholder="Her şeyi sor, @ ile bahset, / ile komutlar" rows="1"></textarea>
+      <textarea id="t" placeholder="Her şeyi sor, @ ile bağlam ekle, / ile komutlar..." rows="1"></textarea>
       <div id="kutuAlt">
-        <button class="rozet" id="modelBtn"><span id="modelAd">${a.model || 'model yok'}</span><span class="ok">&#9660;</span></button>
-        <button class="rozet" id="ekle">&#43;</button>
+        <button class="rozet" id="modelBtn" title="Model seç">
+          <span id="modelAd">${a.model || 'meituan/longcat-2.5-preview:free'}</span>
+          <span class="ok">&#9660;</span>
+        </button>
+        <button class="rozet" id="ekleBaglam" title="Bağlam ekle (@)">@</button>
+        <button class="rozet" id="ekleSlash" title="Komutlar (/)">/</button>
         <button id="gonderBtn" title="Gönder">&#8593;</button>
       </div>
     </div>
-    <div id="ipucu"><kbd>Enter</kbd> gönderir &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> yeni satır</div>
+    <div id="ipucu"><kbd>Enter</kbd> gönderir &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> yeni satır &middot; <kbd>@</kbd> bağlam &middot; <kbd>/</kbd> komutlar</div>
+  </div>
+</div>
+
+<!-- Model Seçici Popover Modal -->
+<div id="modelSeciciModal">
+  <div id="modelKutusu">
+    <div id="modelKutusuUst">
+      <span class="baslik">Model Seç</span>
+      <button class="kapat" id="modelKapat">&#215;</button>
+    </div>
+    <input type="text" id="modelArama" placeholder="Model veya sağlayıcı ara...">
+    <div id="modelListesi"></div>
+    <div id="modelKutusuAlt">
+      <span class="uyariOllama">&#128683; Ollama YOK (Yalnızca Bulut Modelleri)</span>
+      <span>${sagAd}</span>
+    </div>
   </div>
 </div>
 
 <script>
 const vs = acquireVsCodeApi();
+const katalog = ${katalogJson};
+const baglamKomutlari = ${baglamJson};
+const slashKomutlari = ${slashJson};
+
+let guncelModel = '${a.model || "meituan/longcat-2.5-preview:free"}';
+let aktifId = null, bekleyen = false;
+
 const sohbet = document.getElementById('sohbet');
 const sohbetIc = document.getElementById('sohbetIc');
 const bos = document.getElementById('bos');
@@ -319,9 +514,21 @@ const t = document.getElementById('t');
 const gonderBtn = document.getElementById('gonderBtn');
 const railListe = document.getElementById('railListe');
 const ustBaslik = document.getElementById('ustBaslik');
-let bekleyen = false, aktifId = null;
+const ustModelRozet = document.getElementById('ustModelRozet');
+const modelAd = document.getElementById('modelAd');
 
-function kacir(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const baglamMenu = document.getElementById('baglamMenu');
+const baglamListe = document.getElementById('baglamListe');
+const slashMenu = document.getElementById('slashMenu');
+const slashListe = document.getElementById('slashListe');
+
+const modelSeciciModal = document.getElementById('modelSeciciModal');
+const modelListesi = document.getElementById('modelListesi');
+const modelArama = document.getElementById('modelArama');
+const modelBtn = document.getElementById('modelBtn');
+const modelKapat = document.getElementById('modelKapat');
+
+function kacir(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function bicimle(s){
   let x = kacir(s);
@@ -362,6 +569,7 @@ function railCiz(liste){
 function gonder(){
   const m = t.value.trim();
   if (!m || bekleyen) return;
+  menuKapat();
   mesajEkle('user', m);
   t.value = ''; t.style.height = 'auto';
   bekleyen = true; gonderBtn.disabled = true;
@@ -370,16 +578,150 @@ function gonder(){
   vs.postMessage({ tip:'sor', metin:m, id:aktifId });
 }
 
+/* ── Menü Mantığı ── */
+function menuKapat(){
+  baglamMenu.classList.remove('aktif');
+  slashMenu.classList.remove('aktif');
+}
+
+function baglamMenuGoster(){
+  menuKapat();
+  baglamListe.innerHTML = '';
+  baglamKomutlari.forEach(function(item, idx){
+    const el = document.createElement('div');
+    el.className = 'acilirOge' + (idx === 0 ? ' secili' : '');
+    el.innerHTML = '<span class="ikon">' + item.ikon + '</span><span class="ad">' + item.ad + '</span><span class="ipucuMetin">' + item.ipucu + '</span>';
+    el.onclick = function(){
+      baglamSec(item.ad);
+    };
+    baglamListe.appendChild(el);
+  });
+  baglamMenu.classList.add('aktif');
+}
+
+function slashMenuGoster(){
+  menuKapat();
+  slashListe.innerHTML = '';
+  slashKomutlari.forEach(function(item, idx){
+    const el = document.createElement('div');
+    el.className = 'acilirOge' + (idx === 0 ? ' secili' : '');
+    el.innerHTML = '<span class="ikon">' + item.ikon + '</span><span class="ad">' + item.ad + '</span><span class="ipucuMetin">' + item.ipucu + '</span>';
+    el.onclick = function(){
+      slashSec(item.ad);
+    };
+    slashListe.appendChild(el);
+  });
+  slashMenu.classList.add('aktif');
+}
+
+function baglamSec(ad){
+  menuKapat();
+  const val = t.value;
+  if (!val.includes(ad)) {
+    t.value = val ? val + ' ' + ad + ' ' : ad + ' ';
+  }
+  t.focus();
+}
+
+function slashSec(ad){
+  menuKapat();
+  t.value = ad + ' ' + t.value.replace(/^\\/[\\w]+\\s*/, '');
+  t.focus();
+}
+
+/* ── Model Seçici ── */
+function modelSeciciCiz(filtre){
+  modelListesi.innerHTML = '';
+  const aranan = (filtre || '').toLowerCase().trim();
+  const eslesenler = katalog.filter(function(m){
+    return !aranan || m.ad.toLowerCase().includes(aranan) || m.id.toLowerCase().includes(aranan) || m.saglayici.toLowerCase().includes(aranan);
+  });
+
+  if (!eslesenler.length){
+    modelListesi.innerHTML = '<div style="padding:16px;text-align:center;color:#666;font-size:12px">Eşleşen model bulunamadı</div>';
+    return;
+  }
+
+  eslesenler.forEach(function(m){
+    const d = document.createElement('div');
+    d.className = 'modelOge' + (m.id === guncelModel ? ' secili' : '');
+    d.innerHTML = '<div class="modelOgeUst">' +
+      '<span class="modelOgeAd">' + kacir(m.ad) + '</span>' +
+      '<span class="modelOgeRozet">' + kacir(m.rozet) + '</span>' +
+      '<span class="modelOgeSag">' + kacir(m.saglayici) + '</span>' +
+      '</div>' +
+      '<div class="modelOgeAciklama">' + kacir(m.aciklama) + '</div>';
+    d.onclick = function(){
+      guncelModel = m.id;
+      modelAd.textContent = m.ad;
+      ustModelRozet.textContent = m.id;
+      vs.postMessage({ tip: 'modelDegistir', model: m.id, saglayici: m.saglayici });
+      modelSeciciModal.classList.remove('aktif');
+    };
+    modelListesi.appendChild(d);
+  });
+}
+
+modelBtn.onclick = function(){
+  modelSeciciModal.classList.add('aktif');
+  modelArama.value = '';
+  modelSeciciCiz('');
+  modelArama.focus();
+};
+modelKapat.onclick = function(){ modelSeciciModal.classList.remove('aktif'); };
+modelArama.oninput = function(){ modelSeciciCiz(modelArama.value); };
+
+document.getElementById('ekleBaglam').onclick = baglamMenuGoster;
+document.getElementById('ekleSlash').onclick = slashMenuGoster;
+
+/* Hızlı Başlangıç Örnek Rozetleri */
+document.querySelectorAll('.ornekRozet').forEach(function(btn){
+  btn.onclick = function(){
+    const k = btn.getAttribute('data-komut');
+    if (k.startsWith('/')) { slashSec(k.trim()); }
+    else { baglamSec(k.trim()); }
+  };
+});
+
 gonderBtn.onclick = gonder;
-t.addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); gonder(); } });
-t.addEventListener('input', function(){ t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,230)+'px'; });
+
+t.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') { menuKapat(); modelSeciciModal.classList.remove('aktif'); return; }
+  if (e.key === 'Enter' && !e.shiftKey){
+    if (baglamMenu.classList.contains('aktif')){
+      e.preventDefault();
+      const sec = baglamListe.querySelector('.acilirOge.secili');
+      if (sec) sec.click();
+      return;
+    }
+    if (slashMenu.classList.contains('aktif')){
+      e.preventDefault();
+      const sec = slashListe.querySelector('.acilirOge.secili');
+      if (sec) sec.click();
+      return;
+    }
+    e.preventDefault(); gonder();
+  }
+});
+
+t.addEventListener('input', function(){
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 230) + 'px';
+
+  const val = t.value;
+  if (val.endsWith('@')) {
+    baglamMenuGoster();
+  } else if (val.endsWith('/') && val.length === 1) {
+    slashMenuGoster();
+  } else if (!val.includes('@') && !val.startsWith('/')) {
+    menuKapat();
+  }
+});
 
 document.getElementById('yeni').onclick = function(){ vs.postMessage({tip:'yeni'}); };
 document.getElementById('btnAnahtar').onclick = function(){ vs.postMessage({tip:'anahtar'}); };
 document.getElementById('btnAyarlar').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
 document.getElementById('ak').onclick = function(e){ e.preventDefault(); vs.postMessage({tip:'anahtar'}); };
-document.getElementById('modelBtn').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
-document.getElementById('ekle').onclick = function(){ vs.postMessage({tip:'ayarlar'}); };
 
 window.addEventListener('message', function(e){
   const m = e.data;
@@ -405,7 +747,13 @@ window.addEventListener('message', function(e){
     if (m.konusmalar) railCiz(m.konusmalar);
     bekleyen = false; gonderBtn.disabled = false;
   }
+  if (m.tip === 'modelGuncellendi'){
+    guncelModel = m.model;
+    modelAd.textContent = m.model;
+    ustModelRozet.textContent = m.model;
+  }
 });
+
 t.focus();
 </script></body></html>`;
 	}
@@ -496,7 +844,7 @@ const sohbet = document.getElementById('sohbet');
 const t = document.getElementById('t');
 const gonderBtn = document.getElementById('gonder');
 let bekleyen = null;
-function kacir(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function kacir(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function bicimle(s){
   let x = kacir(s);
   x = x.replace(/\`\`\`([\\w+-]*)\\n?([\\s\\S]*?)\`\`\`/g, function(m,d,k){
