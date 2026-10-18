@@ -67,13 +67,12 @@ fi
 
 if [ -f "$KAYNAK/src/mainImpl.ts" ]; then
   python3 - "$KAYNAK/src/mainImpl.ts" <<'PY'
-import sys, pathlib, re
+import sys, pathlib
 p = pathlib.Path(sys.argv[1])
 s = p.read_text(encoding='utf-8')
-s = re.sub(r'if\s*\([^)]*sandbox[^)]*\)\s*\{\s*app\.enableSandbox\(\);\s*\}', "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');", s)
 s = s.replace("app.enableSandbox();", "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');")
 p.write_text(s, encoding='utf-8')
-print("    [ok] src/mainImpl.ts (enableSandbox tamamen kaldırıldı)")
+print("    [ok] src/mainImpl.ts (enableSandbox tamamen no-sandbox yapildi)")
 PY
 fi
 
