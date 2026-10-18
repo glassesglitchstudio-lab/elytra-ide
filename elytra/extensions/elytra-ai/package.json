@@ -39,8 +39,9 @@
 			{ "command": "elytra.temizle", "title": "Sohbeti Temizle", "category": "Elytra", "icon": "$(clear-all)" }
 		],
 		"keybindings": [
-			{ "command": "elytra.chat", "key": "ctrl+shift+a", "mac": "cmd+shift+a" },
-			{ "command": "elytra.inlineEdit", "key": "ctrl+k", "mac": "cmd+k", "when": "editorTextFocus" }
+			{ "command": "elytra.chat", "key": "ctrl+l", "mac": "cmd+l" },
+			{ "command": "elytra.inlineEdit", "key": "ctrl+k", "mac": "cmd+k", "when": "editorTextFocus" },
+			{ "command": "elytra.baslangic", "key": "ctrl+i", "mac": "cmd+i" }
 		],
 		"menus": {
 			"view/title": [

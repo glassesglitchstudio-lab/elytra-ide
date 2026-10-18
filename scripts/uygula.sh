@@ -50,6 +50,21 @@ else
   echo "    [--] build/npm/dirs.ts (zaten var)"
 fi
 
+# 3b) Sandbox segfault kalıcı çözümü (Elytra Code.exe doğrudan çift tıklanınca çökmemesi için)
+if [ -f "$KAYNAK/src/mainImpl.ts" ]; then
+  python3 - "$KAYNAK/src/mainImpl.ts" <<'PY'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1])
+s = p.read_text(encoding='utf-8')
+if "app.enableSandbox();" in s:
+    s = s.replace("app.enableSandbox();", "app.commandLine.appendSwitch('no-sandbox'); app.commandLine.appendSwitch('disable-gpu-sandbox');")
+    p.write_text(s, encoding='utf-8')
+    print("    [ok] src/mainImpl.ts (no-sandbox yerleşik olarak enjekte edildi)")
+else:
+    print("    [--] src/mainImpl.ts (zaten no-sandbox var)")
+PY
+fi
+
 # 4) Microsoft'a özel marka kalıntılarını temizle
 # NOT: product.json'a sonradan DOKUNULMAZ.
 # builtInExtensions / trustedExtensionAuthAccess alanlari derleme icin ZORUNLU;
