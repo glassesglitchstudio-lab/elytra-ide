@@ -105,13 +105,7 @@ jobs:
           if [ ! -d "$HEDEF" ]; then
             echo "[!] $HEDEF bulunamadi"; ls -d VSCode-* 2>/dev/null; exit 1
           fi
-          cat > "$HEDEF/Elytra Code Baslat.cmd" <<'BAT'
-@echo off
-REM Elytra Code baslatici
-cd /d "%~dp0"
-if exist "%APPDATA%\Elytra Code\code.lock" del /f /q "%APPDATA%\Elytra Code\code.lock" >nul 2>&1
-start "" "Elytra Code.exe" --no-sandbox %*
-BAT
+          python -c "p = '$HEDEF/Elytra Code Baslat.cmd'; content = '@echo off\nREM Elytra Code baslatici\ncd /d \"%~dp0\"\nif exist \"%APPDATA%\\\\Elytra Code\\\\code.lock\" del /f /q \"%APPDATA%\\\\Elytra Code\\\\code.lock\" >nul 2>&1\nstart \"\" \"Elytra Code.exe\" --no-sandbox %*\n'; open(p, 'w', encoding='utf-8', newline='\r\n').write(content)"
           echo "[ok] Baslatici olusturuldu"
           ls -la "$HEDEF/Elytra Code Baslat.cmd"
 
