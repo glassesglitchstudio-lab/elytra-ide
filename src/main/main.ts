@@ -52,14 +52,14 @@ function writeJsonFile<T>(filePath: string, data: T): boolean {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    title: 'Elythra Code',
     width: 1440,
     height: 900,
     minWidth: 960,
     minHeight: 600,
     frame: false,
-    titleBarStyle: 'hidden',
     backgroundColor: '#111111',
-    show: false,
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -68,17 +68,27 @@ function createWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+  mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
+    console.error('Renderer failed to load:', errorCode, errorDescription);
   });
+
+  mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
+    console.log(`[Renderer ${level}] ${message} (${sourceId}:${line})`);
+  });
+
+  // Uncomment for debugging if needed:
+  // mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   // Load renderer
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    const indexPath = path.join(__dirname, '../dist/index.html');
-    if (fs.existsSync(indexPath)) {
-      mainWindow.loadFile(indexPath);
+    const prodPath = path.join(app.getAppPath(), 'dist/index.html');
+    const fallbackPath = path.join(__dirname, '../dist/index.html');
+    if (fs.existsSync(prodPath)) {
+      mainWindow.loadFile(prodPath);
+    } else if (fs.existsSync(fallbackPath)) {
+      mainWindow.loadFile(fallbackPath);
     } else {
       mainWindow.loadURL('http://localhost:5173');
     }
