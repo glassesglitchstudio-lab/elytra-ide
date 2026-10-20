@@ -1,2 +1,6 @@
-vscode-kaynak/
 node_modules/
+dist/
+dist-electron/
+release/
+.vite/
+*.log

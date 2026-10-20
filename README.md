@@ -1,78 +1,63 @@
-# Elytra Code
+# Elythra Code
 
-**VS Code fork'u + Cursor tarzı AI — ücretsiz, açık kaynak.**
+<div align="center">
+  <img src="public/logo.png" alt="Elythra Logo" width="100" />
+  <h3>The Next-Generation AI-Native Code Editor</h3>
+  <p>Single-window, zero bloat, BYOK (Bring Your Own Key), high-performance IDE.</p>
+</div>
 
-Elytra Code, Microsoft'un açık kaynaklı (MIT) `vscode` kaynağı üzerine Elytra
-katmanını uygular: kendi markası, kendi AI uzantısı, kendi derleme hattı.
+---
 
-> Derleme **GitHub Actions** üzerinde çalışır. Kendi bilgisayarın yorulmaz —
-> sadece hazır `.exe`'yi indirirsin.
+## 🌟 Overview
 
-## Ne var?
+**Elythra Code** is an AI-powered desktop code editor designed for maximum speed, minimalist beauty, and autonomous coding assistance.
 
-| Özellik | Durum |
-|---|---|
-| VS Code tabanı (editör, terminal, git, eklentiler) | ✅ |
-| **Elytra AI** uzantısı (sohbet paneli) | ✅ |
-| **Satır içi düzenleme** (`Ctrl+K`) — Cursor tarzı | ✅ |
-| **Kodu açıkla** komutu | ✅ |
-| **7 sağlayıcı** (Nous, OpenRouter, Groq, DeepSeek, Mistral, Cerebras, Google) | ✅ |
-| **Open VSX** eklenti galerisi (Microsoft galerisi fork'ta yasal değil) | ✅ |
-| Elytra markası (isim, protokol, ikon) | ✅ |
+- **Unified Single Surface:** No "Open IDE" mode separation. When no workspace is open, a clean AI discussion studio is displayed. Opening a folder seamlessly transitions into the full Monaco-based IDE workspace.
+- **BYOK (Bring Your Own Key):** Direct native integrations with:
+  - OpenRouter (300+ models including Claude 3.5 Sonnet, DeepSeek V3/R1, Qwen 2.5 Coder, Llama 3.3)
+  - Google Gemini API (Gemini 3.8 Flash, 2.5 Pro)
+  - Anthropic Claude Direct API
+  - OpenAI API (GPT-4o, o1, o3-mini)
+  - DeepSeek Direct API
+  - Groq Cloud (Ultra-fast LPU inference)
+  - Local Ollama (`http://localhost:11434`)
+  - Any custom OpenAI-compatible endpoint (vLLM / LMStudio / Jan)
+- **Engineered for Speed:** Electron + Vite + React + Monaco Editor + xterm.js + Zustand.
+- **Strictly Flat Dark Theme:** Minimalist palette (`#111111`, `#0f0f0f`, `#1f1f1f`, `#161616`, `#262626`).
 
-## Mimari
+---
 
-```
-elytra-ide/
-├── elytra/
-│   ├── product.json              # Elytra markası (isim, protokol, Open VSX)
-│   └── extensions/elytra-ai/     # AI uzantısı (sohbet + Ctrl+K)
-├── scripts/uygula.sh             # VS Code kaynağına katmanı uygular
-└── .github/workflows/derle.yml   # GitHub Actions derleme hattı
-```
+## 🚀 Getting Started
 
-**Neden böyle?** VS Code kaynağı ~937 MB. Onu repoya koymak yerine, Actions
-her derlemede kaynağı çeker ve bizim katmanı üzerine uygular. Repo küçük kalır.
+### Prerequisites
+- Node.js >= 20
+- npm >= 10
 
-## Derleme
-
-GitHub Actions otomatik çalışır (`push` veya elle):
-
-```
-Actions → Elytra Code Derle → Run workflow
-```
-
-Bittiğinde **Artifacts → elytra-code-win32-x64** indir → `Elytra Code.exe`.
-
-## Yerel derleme (isteğe bağlı)
-
+### Installation
 ```bash
-git clone --depth 1 https://github.com/microsoft/vscode.git vscode-kaynak
-bash scripts/uygula.sh vscode-kaynak
-cd vscode-kaynak
 npm install
-npm run gulp vscode-win32-x64-archive
 ```
 
-## AI kurulumu
+### Development Mode
+```bash
+npm run dev
+# Or with Electron window:
+npm run dev:electron
+```
 
-1. `Ctrl+Shift+P` → **Elytra: API Anahtarı Ayarla**
-2. Sağlayıcı + model seç (Ayarlar → Elytra AI)
-3. `Ctrl+Shift+A` → sohbet paneli açılır
-4. Kodu seç → `Ctrl+K` → talimat yaz → AI kodu yeniden yazar
+### Build & Package for Windows
+```bash
+npm run build
+npm run pack:win    # Unpacked Windows directory
+npm run dist:win    # Windows installer (NSIS & ZIP)
+```
 
-**Sahte cevap yok.** Anahtar yoksa uzantı dürüst hata verir.
+---
 
-## Lisans
+## 🤖 Automations & Custom Rules
+Elythra Code includes built-in project automations (`Automations` tab in sidebar) to run tests or linting on save, and custom system instructions (`Customizations` tab) to guide AI behavior during pair programming.
 
-- Elytra katmanı: MIT
-- VS Code tabanı: MIT (Microsoft)
-- Elytra markası ve logosu Microsoft'a ait **değildir** — bu bir bağımsız fork'tur.
+---
 
-## Elytra-AI ürün ailesi
-
-| Ürün | Ne |
-|---|---|
-| **elytra-ide** (bu repo) | VS Code fork'u + AI |
-| [elytra-cli](https://github.com/glassesglitchstudio-lab/elytra-cli) | Rust terminal AI asistanı |
-| [elytra-providers](https://github.com/glassesglitchstudio-lab/elytra-providers) | 15 sağlayıcı kataloğu |
+## 📄 License
+MIT License.

@@ -1,135 +1,41 @@
-name: Elytra Code Derle
-
-# PC'yi YORMAZ — derleme GitHub sunucularında çalışır.
-# VS Code kaynağını çeker, Elytra katmanını uygular, Windows .exe üretir.
+name: Elythra Code Windows Build
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  PYTHONIOENCODING: utf-8
-  PYTHONUTF8: '1'
-  npm_config_build_from_source: 'false'
-  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-
 jobs:
-  derle:
-    name: Windows x64
+  build:
+    name: Build Elythra Code Windows Installer
     runs-on: windows-2022
-    timeout-minutes: 180
+    timeout-minutes: 30
 
     steps:
-      - name: Elytra katmanını al
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Node.js kur
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'npm'
 
-      - name: Python kur
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: MSVC (Visual Studio C++) ortamını kur
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Build Renderer & Electron Main
+        run: npm run build
 
-      - name: VS Code kaynağını çek (shallow)
-        shell: bash
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vscode.git vscode-kaynak
-          du -sh vscode-kaynak
-
-      - name: Elytra katmanını uygula
-        shell: bash
-        run: |
-          bash scripts/uygula.sh vscode-kaynak
-          python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('nameShort =',d['nameShort'])"
-
-      - name: Microsoft'a özel bileşenleri çıkar (Copilot SDK)
-        shell: bash
-        run: |
-          bash scripts/ozel-cikar.sh vscode-kaynak
-          echo "--- dogrulama ---"
-          ls vscode-kaynak/extensions/ | grep -c copilot || echo "copilot yok (dogru)"
-
-      - name: Bağımlılıkları kur
-        shell: bash
-        working-directory: vscode-kaynak
-        run: |
-          npm install --no-audit --no-fund --build-from-source=false
+      - name: Package with electron-builder
+        run: npx electron-builder --win --x64 --dir
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Derle (Windows x64)
-        shell: bash
-        working-directory: vscode-kaynak
-        run: |
-          npm run gulp vscode-win32-x64
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Uzanti paketlendi mi? (dogrulama)
-        shell: bash
-        run: |
-          HEDEF="VSCode-win32-x64"
-          HATA=0
-          for yol in \
-            "extensions/elytra-ai/package.json" \
-            "extensions/elytra-ai/out/extension.js" \
-            "extensions/elytra-ai/resources/elytra.svg" \
-            "extensions/elytra-theme/package.json" \
-            "extensions/elytra-theme/themes/elytra-dark.json"
-          do
-            if [ -f "$HEDEF/resources/app/$yol" ]; then
-              echo "  [ok] $yol ($(wc -c < "$HEDEF/resources/app/$yol") byte)"
-            else
-              echo "  [!] EKSIK: $yol"
-              HATA=1
-            fi
-          done
-          if [ "$HATA" -ne 0 ]; then
-            echo "##[error] Elytra uzantilari pakete girmemis!"
-            exit 1
-          fi
-          echo "Tum Elytra uzantilari pakette."
-
-      - name: Baslatici olustur (sandbox segfault cozumu)
-        shell: bash
-        run: |
-          HEDEF="VSCode-win32-x64"
-          if [ ! -d "$HEDEF" ]; then
-            echo "[!] $HEDEF bulunamadi"; ls -d VSCode-* 2>/dev/null; exit 1
-          fi
-          python -c "p = '$HEDEF/Elytra Code Baslat.cmd'; content = '@echo off\nREM Elytra Code baslatici\ncd /d \"%~dp0\"\nif exist \"%APPDATA%\\\\Elytra Code\\\\code.lock\" del /f /q \"%APPDATA%\\\\Elytra Code\\\\code.lock\" >nul 2>&1\nstart \"\" \"Elytra Code.exe\" --no-sandbox %*\n'; open(p, 'w', encoding='utf-8', newline='\r\n').write(content)"
-          echo "[ok] Baslatici olusturuldu"
-          ls -la "$HEDEF/Elytra Code Baslat.cmd"
-
-      - name: Artifact yükle
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: elytra-code-win32-x64
-          path: VSCode-win32-x64/
-          retention-days: 30
-          if-no-files-found: warn
-          compression-level: 6
-
-      - name: Özet
-        shell: bash
-        run: |
-          {
-            echo "## Elytra Code derlemesi tamam"
-            echo ""
-            echo "**Artifact:** \`elytra-code-win32-x64\`"
-            echo ""
-            echo "İndir, klasörü aç, \`Elytra Code.exe\` çalıştır"
-            echo ""
-            echo "### Marka"
-            echo '```'
-            python -c "import json;d=json.load(open('vscode-kaynak/product.json',encoding='utf-8'));print('isim     :',d['nameLong']);print('protokol :',d['urlProtocol']);print('galeri   :',d['extensionsGallery']['serviceUrl'])"
-            echo '```'
-          } >> $GITHUB_STEP_SUMMARY
+          name: elythra-code-win32-x64
+          path: release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 14
