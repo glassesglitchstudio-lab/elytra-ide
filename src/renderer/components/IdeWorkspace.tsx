@@ -1,32 +1,25 @@
 import React from 'react';
-import { useElythraStore } from '../store/useElythraStore';
-import { FileTree } from './FileTree';
 import { EditorArea } from './EditorArea';
 import { TerminalPanel } from './TerminalPanel';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import { StatusBar } from './StatusBar';
 
 export const IdeWorkspace: React.FC = () => {
-  const { fileTree } = useElythraStore();
-
   return (
-    <div className="flex-1 h-[calc(100vh-44px)] flex flex-col bg-[#111111] overflow-hidden">
-      {/* Ana Çalışma Alanı (FileTree + Editör/Terminal + AI Panel) */}
+    <div className="flex-1 h-full flex flex-col bg-[#0f0f0f] overflow-hidden">
+      {/* Central Area: Editor + Terminal + Right AI Assistant */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Dosya Ağacı */}
-        <FileTree items={fileTree} />
-
-        {/* Editör ve Terminal */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Main Editor & Terminal Panel */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a0a]">
           <EditorArea />
           <TerminalPanel />
         </div>
 
-        {/* Sağ Yapay Zeka Paneli */}
+        {/* Right Collapsible AI Assistant Panel */}
         <AIAssistantPanel />
       </div>
 
-      {/* Alt Durum Çubuğu */}
+      {/* Bottom Status Bar */}
       <StatusBar />
     </div>
   );

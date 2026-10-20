@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { TitleBar } from './components/TitleBar';
+import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { HomeScreen } from './components/HomeScreen';
 import { IdeWorkspace } from './components/IdeWorkspace';
@@ -14,7 +15,10 @@ export const App: React.FC = () => {
   const {
     init,
     activeProject,
+    openTabs,
     sidebarTab,
+    activeView,
+    isSidebarOpen,
     activeModal,
     setActiveModal,
     toggleSidebar,
@@ -70,26 +74,39 @@ export const App: React.FC = () => {
     if (sidebarTab === 'customizations') {
       return <CustomizationsView />;
     }
-    if (sidebarTab === 'history') {
-      return <HistoryView />;
+
+    if (activeView === 'editor') {
+      return <IdeWorkspace />;
     }
 
-    // Default: If project is open, show full IDE workspace; otherwise show Home Screen
-    return activeProject ? <IdeWorkspace /> : <HomeScreen />;
+    if (activeView === 'studio') {
+      return <HomeScreen />;
+    }
+
+    // Default fallback: if files are open, show editor; else show studio
+    return openTabs.length > 0 || activeProject ? <IdeWorkspace /> : <HomeScreen />;
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#111111] overflow-hidden select-none">
-      {/* 1. Üst Menü Çubuğu (44px) */}
+    <div className="h-screen w-screen flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
+      {/* 1. Antigravity Top Title Bar (40px) */}
       <TitleBar />
 
-      {/* 2. Ana Çalışma Alanı (Sol Panel + İçerik) */}
+      {/* 2. Main Workbench Surface */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
-        {renderMainContent()}
+        {/* Antigravity Left Activity Bar (48px) */}
+        <ActivityBar />
+
+        {/* Primary Collapsible Sidebar (280px) */}
+        {isSidebarOpen && <Sidebar />}
+
+        {/* Central Stage: Antigravity Studio OR Monaco IDE Workspace */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#0e0e0e]">
+          {renderMainContent()}
+        </div>
       </div>
 
-      {/* 3. Modallar ve Açılır Pencereler */}
+      {/* 3. Global Modals */}
       {activeModal === 'settings' && <SettingsModal />}
       {(activeModal === 'command-palette' || activeModal === 'quick-open') && <CommandPalette />}
     </div>

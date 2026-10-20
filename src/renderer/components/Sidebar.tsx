@@ -1,45 +1,67 @@
 import React, { useState } from 'react';
 import {
-  PanelLeftClose,
-  ArrowLeft,
-  ArrowRight,
-  Search,
-  Plus,
-  History,
-  Clock,
-  Layers,
   Folder,
   FolderPlus,
-  Filter,
-  Settings,
+  Plus,
+  RefreshCw,
+  Search,
+  GitBranch,
+  GitCommit,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  FileCode,
   Trash2,
+  X,
+  Clock,
+  Sparkles,
+  Layers,
+  ChevronDown,
+  ChevronRight,
+  Filter,
 } from 'lucide-react';
-import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
+import { FileTree } from './FileTree';
 
 export const Sidebar: React.FC = () => {
   const {
     sidebarTab,
     setSidebarTab,
-    isSidebarOpen,
-    toggleSidebar,
     sidebarWidth,
-    setSidebarWidth,
     projects,
     openProject,
     activeProject,
-    closeProject,
+    fileTree,
+    refreshFileTree,
+    openTabs,
+    activeTabPath,
+    openFileTab,
+    closeFileTab,
     conversations,
     activeConversationId,
     selectConversation,
     deleteConversation,
-    setActiveModal,
+    startNewConversation,
+    gitStatus,
+    refreshGitStatus,
+    stageFile,
+    unstageFile,
+    commitGitChanges,
+    pushGitChanges,
+    pullGitChanges,
+    searchQuery,
+    searchResults,
+    isSearching,
+    performSearch,
+    setSearchQuery,
+    setActiveView,
   } = useElythraStore();
 
-  const [projectFilter, setProjectFilter] = useState('');
-  const [showFilterInput, setShowFilterInput] = useState(false);
-
-  if (!isSidebarOpen) return null;
+  const [commitMsg, setCommitMsg] = useState('');
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [gitOutput, setGitOutput] = useState<string | null>(null);
+  const [searchWord, setSearchWord] = useState('');
+  const [sessionFilter, setSessionFilter] = useState('');
 
   const handleAddNewProject = async () => {
     if (!window.elythraAPI) return;
@@ -49,233 +71,462 @@ export const Sidebar: React.FC = () => {
     }
   };
 
-  const filteredProjects = projects.filter((p) =>
-    p.name.toLowerCase().includes(projectFilter.toLowerCase())
-  );
+  const handleCommit = async () => {
+    if (!commitMsg.trim() || isCommitting) return;
+    setIsCommitting(true);
+    const ok = await commitGitChanges(commitMsg);
+    setIsCommitting(false);
+    if (ok) {
+      setCommitMsg('');
+    }
+  };
+
+  const handlePush = async () => {
+    const res = await pushGitChanges();
+    setGitOutput(res);
+    setTimeout(() => setGitOutput(null), 3000);
+  };
+
+  const handlePull = async () => {
+    const res = await pullGitChanges();
+    setGitOutput(res);
+    setTimeout(() => setGitOutput(null), 3000);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(searchWord);
+  };
 
   return (
     <aside
       style={{ width: `${sidebarWidth}px` }}
-      className="h-[calc(100vh-44px)] bg-[#0f0f0f] border-r border-[#1f1f1f] flex flex-col select-none relative z-20 flex-shrink-0"
+      className="h-full bg-[#0a0a0a] border-r border-[#1a1a1a] flex flex-col select-none relative z-20 flex-shrink-0"
     >
-      {/* 1. En Üstte İkon Sırası: logo, panel aç/kapa, geri oku, ileri oku, arama ikonu */}
-      <div className="h-10 px-3 border-b border-[#1f1f1f] flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              closeProject();
-              setSidebarTab('new-chat');
-            }}
-            className="p-1.5 hover:bg-[#2a2a2a] rounded-btn text-white transition-colors"
-            title="Elythra Home"
-          >
-            <ElythraLogo size={16} />
-          </button>
-          <button
-            onClick={toggleSidebar}
-            className="p-1.5 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#2a2a2a] rounded-btn transition-colors"
-            title="Toggle Sidebar"
-          >
-            <PanelLeftClose size={16} />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            className="p-1.5 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#2a2a2a] rounded-btn transition-colors"
-            title="Back"
-          >
-            <ArrowLeft size={15} />
-          </button>
-          <button
-            className="p-1.5 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#2a2a2a] rounded-btn transition-colors"
-            title="Forward"
-          >
-            <ArrowRight size={15} />
-          </button>
-          <button
-            onClick={() => setActiveModal('command-palette')}
-            className="p-1.5 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#2a2a2a] rounded-btn transition-colors"
-            title="Search Workspace"
-          >
-            <Search size={15} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Dikey Menü (İkon + Yazı) */}
-      <div className="p-2 space-y-1 border-b border-[#1f1f1f]">
-        <button
-          onClick={() => setSidebarTab('new-chat')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-btn font-medium transition-colors ${
-            sidebarTab === 'new-chat' && !activeProject
-              ? 'bg-[#2a2a2a] text-[#e5e5e5]'
-              : 'text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a]'
-          }`}
-        >
-          <Plus size={16} />
-          <span>New Conversation</span>
-        </button>
-
-        <button
-          onClick={() => setSidebarTab('history')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-btn font-medium transition-colors ${
-            sidebarTab === 'history'
-              ? 'bg-[#2a2a2a] text-[#e5e5e5]'
-              : 'text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a]'
-          }`}
-        >
-          <History size={16} />
-          <span>Conversation History</span>
-        </button>
-
-        <button
-          onClick={() => setSidebarTab('automations')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-btn font-medium transition-colors ${
-            sidebarTab === 'automations'
-              ? 'bg-[#2a2a2a] text-[#e5e5e5]'
-              : 'text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a]'
-          }`}
-        >
-          <Clock size={16} />
-          <span>Automations</span>
-        </button>
-
-        <button
-          onClick={() => setSidebarTab('customizations')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-btn font-medium transition-colors ${
-            sidebarTab === 'customizations'
-              ? 'bg-[#2a2a2a] text-[#e5e5e5]'
-              : 'text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a]'
-          }`}
-        >
-          <Layers size={16} />
-          <span>Customizations</span>
-        </button>
-      </div>
-
-      {/* 3. Projects Bölümü */}
-      <div className="flex-1 overflow-y-auto px-2 py-3">
-        <div className="flex items-center justify-between px-2 mb-2">
-          <span className="text-[11px] font-semibold tracking-wider uppercase text-[#8a8a8a]">
-            Projects
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowFilterInput(!showFilterInput)}
-              className="p-1 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1f1f1f] rounded-btn transition-colors"
-              title="Filter Projects"
-            >
-              <Filter size={13} />
-            </button>
-            <button
-              onClick={handleAddNewProject}
-              className="p-1 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1f1f1f] rounded-btn transition-colors"
-              title="Add Existing Folder"
-            >
-              <FolderPlus size={14} />
-            </button>
-          </div>
-        </div>
-
-        {showFilterInput && (
-          <div className="px-2 mb-2">
-            <input
-              type="text"
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              placeholder="Filter..."
-              className="w-full bg-[#161616] border border-[#262626] rounded-btn px-2 py-1 text-[12px] text-[#e5e5e5] focus:outline-none"
-              autoFocus
-            />
-          </div>
-        )}
-
-        {/* Proje Listesi */}
-        <div className="space-y-1">
-          {filteredProjects.length === 0 ? (
-            <div className="px-3 py-4 text-center">
-              <p className="text-[12px] text-[#8a8a8a]">No projects added</p>
+      {/* 1. EXPLORER TAB */}
+      {sidebarTab === 'explorer' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="h-9 px-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0e0e0e]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+              Explorer
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={refreshFileTree}
+                className="p-1 text-[#888888] hover:text-[#e5e5e5] rounded hover:bg-[#1f1f1f] transition-colors"
+                title="Refresh File Tree"
+              >
+                <RefreshCw size={13} />
+              </button>
               <button
                 onClick={handleAddNewProject}
-                className="mt-2 text-[11px] text-[#e5e5e5] underline hover:text-white"
+                className="p-1 text-[#888888] hover:text-[#e5e5e5] rounded hover:bg-[#1f1f1f] transition-colors"
+                title="Open Folder..."
               >
-                Open a folder
+                <FolderPlus size={13} />
               </button>
             </div>
-          ) : (
-            filteredProjects.map((p) => {
-              const isSelected = activeProject?.path === p.path;
-              const projectConvos = conversations.filter((c) => c.projectId === p.id);
+          </div>
 
-              return (
-                <div
-                  key={p.id}
-                  className={`group rounded-btn transition-colors ${
-                    isSelected ? 'bg-[#2a2a2a]' : 'hover:bg-[#161616]'
-                  }`}
-                >
+          <div className="flex-1 overflow-y-auto">
+            {/* Open Editors Section */}
+            {openTabs.length > 0 && (
+              <div className="border-b border-[#1a1a1a] pb-1">
+                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#666666]">
+                  Open Editors ({openTabs.length})
+                </div>
+                {openTabs.map((tab) => (
                   <div
-                    onClick={() => openProject(p.path)}
-                    className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                    key={tab.path}
+                    onClick={() => {
+                      openFileTab(tab.path);
+                      setActiveView('editor');
+                    }}
+                    className={`flex items-center justify-between px-3 py-1 text-[12px] cursor-pointer group ${
+                      activeTabPath === tab.path ? 'bg-[#181818] text-white font-medium' : 'text-[#888888] hover:text-[#e5e5e5] hover:bg-[#121212]'
+                    }`}
                   >
-                    <Folder size={15} className={isSelected ? 'text-white' : 'text-[#8a8a8a]'} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-[#e5e5e5] truncate">
-                        {p.name}
+                    <span className="truncate flex-1">{tab.name}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeFileTab(tab.path);
+                      }}
+                      className="p-0.5 opacity-0 group-hover:opacity-100 hover:text-white rounded"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Project Folder & Tree */}
+            {activeProject ? (
+              <div className="p-1">
+                <div className="px-2 py-1.5 text-[11px] font-semibold text-[#cccccc] flex items-center gap-1.5">
+                  <Folder size={14} className="text-sky-400" />
+                  <span className="truncate">{activeProject.name}</span>
+                </div>
+                <FileTree items={fileTree} />
+              </div>
+            ) : (
+              <div className="p-4 text-center">
+                <p className="text-[12px] text-[#777777] mb-3">No folder opened</p>
+                <button
+                  onClick={handleAddNewProject}
+                  className="px-3 py-1.5 bg-[#181818] hover:bg-[#222222] border border-[#2a2a2a] text-[#e5e5e5] text-[12px] rounded-lg transition-colors inline-flex items-center gap-1.5 shadow-sm"
+                >
+                  <FolderPlus size={13} />
+                  <span>Open Folder</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. CHAT / SESSIONS TAB */}
+      {sidebarTab === 'chat' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="h-9 px-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0e0e0e]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+              Sessions & Threads
+            </span>
+            <button
+              onClick={() => {
+                startNewConversation();
+                setActiveView('studio');
+              }}
+              className="p-1 text-[#888888] hover:text-white rounded hover:bg-[#1f1f1f] transition-colors flex items-center gap-1 text-[11px]"
+              title="New Session"
+            >
+              <Plus size={13} />
+              <span>New</span>
+            </button>
+          </div>
+
+          <div className="p-2 border-b border-[#1a1a1a]">
+            <input
+              type="text"
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full bg-[#141414] border border-[#222222] rounded-lg px-2.5 py-1 text-[12px] text-[#e5e5e5] placeholder-[#666666] focus:outline-none focus:border-[#383838]"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+            {conversations.length === 0 ? (
+              <div className="p-4 text-center text-[#777777] text-[12px]">
+                No sessions yet. Start a new prompt!
+              </div>
+            ) : (
+              conversations
+                .filter((c) => c.title.toLowerCase().includes(sessionFilter.toLowerCase()))
+                .map((convo) => (
+                  <div
+                    key={convo.id}
+                    onClick={() => {
+                      selectConversation(convo.id);
+                      setActiveView('studio');
+                    }}
+                    className={`flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer group transition-colors ${
+                      activeConversationId === convo.id
+                        ? 'bg-[#181818] border border-[#2a2a2a] text-white'
+                        : 'text-[#888888] hover:text-[#e5e5e5] hover:bg-[#121212]'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0 pr-2">
+                      <div className="text-[12.5px] truncate font-medium">
+                        {convo.title || 'Untitled Session'}
                       </div>
-                      <div className="text-[11px] text-[#8a8a8a] truncate">
-                        {projectConvos.length > 0
-                          ? `${projectConvos.length} conversation${projectConvos.length > 1 ? 's' : ''}`
-                          : 'No conversations yet'}
+                      <div className="text-[10px] text-[#666666] font-mono mt-0.5">
+                        {convo.messages.length} messages · {new Date(convo.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(convo.id);
+                      }}
+                      className="p-1 opacity-0 group-hover:opacity-100 hover:text-red-400 rounded transition-opacity"
+                      title="Delete Thread"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. SEARCH TAB */}
+      {sidebarTab === 'search' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="h-9 px-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0e0e0e]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+              Search in Workspace
+            </span>
+          </div>
+
+          <form onSubmit={handleSearchSubmit} className="p-2 border-b border-[#1a1a1a] space-y-1.5">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchWord}
+                onChange={(e) => setSearchWord(e.target.value)}
+                placeholder="Search..."
+                className="w-full bg-[#141414] border border-[#222222] rounded-lg pl-2.5 pr-7 py-1 text-[12px] text-[#e5e5e5] placeholder-[#666666] focus:outline-none focus:border-[#383838]"
+              />
+              <button
+                type="submit"
+                className="absolute right-1.5 top-1.5 text-[#777777] hover:text-white"
+              >
+                <Search size={13} />
+              </button>
+            </div>
+          </form>
+
+          <div className="flex-1 overflow-y-auto p-1.5">
+            {isSearching ? (
+              <div className="p-4 text-center text-[#777777] text-[12px]">Searching files...</div>
+            ) : searchResults.length === 0 ? (
+              <div className="p-4 text-center text-[#777777] text-[12px]">
+                {searchWord ? 'No results found.' : 'Type query and press Enter.'}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="px-2 py-1 text-[10px] text-[#777777] font-mono">
+                  {searchResults.length} matches found
+                </div>
+                {searchResults.map((r, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (activeProject) {
+                        openFileTab(`${activeProject.path}/${r.file}`);
+                        setActiveView('editor');
+                      }
+                    }}
+                    className="p-2 rounded-lg bg-[#121212] hover:bg-[#1c1c1c] border border-[#202020] cursor-pointer group transition-colors text-[12px]"
+                  >
+                    <div className="text-[11px] font-medium text-sky-400 truncate">
+                      {r.file}:{r.line}
+                    </div>
+                    <div className="text-[11px] font-mono text-[#999999] truncate mt-0.5">
+                      {r.text}
                     </div>
                   </div>
-
-                  {/* Projenin altındaki sohbetler */}
-                  {isSelected && projectConvos.length > 0 && (
-                    <div className="pl-7 pr-2 pb-2 space-y-0.5">
-                      {projectConvos.slice(0, 3).map((convo) => (
-                        <div
-                          key={convo.id}
-                          onClick={() => selectConversation(convo.id)}
-                          className={`flex items-center justify-between px-2 py-1 text-[12px] rounded cursor-pointer ${
-                            activeConversationId === convo.id
-                              ? 'bg-[#333333] text-white'
-                              : 'text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#222222]'
-                          }`}
-                        >
-                          <span className="truncate">{convo.title}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteConversation(convo.id);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 4. En Altta: Settings (Dişli İkonuyla) */}
-      <div className="p-2 border-t border-[#1f1f1f]">
-        <button
-          onClick={() => setActiveModal('settings')}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a] rounded-btn transition-colors font-medium"
-        >
-          <Settings size={16} />
-          <span>Settings</span>
-        </button>
-      </div>
+      {/* 4. SOURCE CONTROL (GIT) TAB */}
+      {sidebarTab === 'git' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="h-9 px-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0e0e0e]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+                Source Control
+              </span>
+              {gitStatus?.branch && (
+                <span className="text-[10px] font-mono text-sky-400 px-1.5 py-0.2 bg-[#161616] border border-[#242424] rounded-full">
+                  {gitStatus.branch}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePull}
+                className="p-1 text-[#888888] hover:text-white rounded hover:bg-[#1f1f1f]"
+                title="Git Pull"
+              >
+                <ArrowDown size={13} />
+              </button>
+              <button
+                onClick={handlePush}
+                className="p-1 text-[#888888] hover:text-white rounded hover:bg-[#1f1f1f]"
+                title="Git Push"
+              >
+                <ArrowUp size={13} />
+              </button>
+              <button
+                onClick={refreshGitStatus}
+                className="p-1 text-[#888888] hover:text-white rounded hover:bg-[#1f1f1f]"
+                title="Refresh Status"
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
+          </div>
+
+          {gitOutput && (
+            <div className="p-2 bg-[#161616] border-b border-[#222222] text-[11px] font-mono text-sky-400">
+              {gitOutput}
+            </div>
+          )}
+
+          {/* Commit Message Box */}
+          <div className="p-2.5 border-b border-[#1a1a1a] space-y-2">
+            <textarea
+              value={commitMsg}
+              onChange={(e) => setCommitMsg(e.target.value)}
+              placeholder="Commit message (Ctrl+Enter to commit)..."
+              rows={2}
+              className="w-full bg-[#141414] border border-[#222222] rounded-lg p-2 text-[12px] text-[#e5e5e5] placeholder-[#666666] focus:outline-none focus:border-[#383838] resize-none"
+            />
+            <button
+              onClick={handleCommit}
+              disabled={!commitMsg.trim() || isCommitting}
+              className={`w-full py-1.5 rounded-lg text-[12px] font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                commitMsg.trim() && !isCommitting
+                  ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm'
+                  : 'bg-[#181818] text-[#555555] cursor-not-allowed border border-[#222222]'
+              }`}
+            >
+              <GitCommit size={13} />
+              <span>{isCommitting ? 'Committing...' : 'Commit Changes'}</span>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2 space-y-3">
+            {/* Staged Changes */}
+            {gitStatus?.staged && gitStatus.staged.length > 0 && (
+              <div>
+                <div className="text-[10px] font-semibold text-[#888888] uppercase tracking-wider mb-1 px-1">
+                  Staged Changes ({gitStatus.staged.length})
+                </div>
+                <div className="space-y-0.5">
+                  {gitStatus.staged.map((file) => (
+                    <div
+                      key={file}
+                      className="flex items-center justify-between px-2 py-1 text-[12px] rounded hover:bg-[#161616] group"
+                    >
+                      <span className="truncate flex-1 text-[#e5e5e5]">{file}</span>
+                      <button
+                        onClick={() => unstageFile(file)}
+                        className="text-[11px] text-[#888888] hover:text-white px-1"
+                        title="Unstage"
+                      >
+                        -
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modified & Untracked Changes */}
+            <div>
+              <div className="text-[10px] font-semibold text-[#888888] uppercase tracking-wider mb-1 px-1">
+                Changes ({(gitStatus?.modified.length || 0) + (gitStatus?.untracked.length || 0)})
+              </div>
+
+              {(!gitStatus || (gitStatus.modified.length === 0 && gitStatus.untracked.length === 0)) ? (
+                <div className="p-3 text-center text-[12px] text-[#666666]">
+                  Working tree clean. No changes detected.
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {gitStatus.modified.map((file) => (
+                    <div
+                      key={file}
+                      className="flex items-center justify-between px-2 py-1 text-[12px] rounded hover:bg-[#161616] group"
+                    >
+                      <span className="truncate flex-1 text-[#e5e5e5]">{file}</span>
+                      <button
+                        onClick={() => stageFile(file)}
+                        className="text-[12px] text-sky-400 hover:text-sky-300 font-bold px-1"
+                        title="Stage File"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                  {gitStatus.untracked.map((file) => (
+                    <div
+                      key={file}
+                      className="flex items-center justify-between px-2 py-1 text-[12px] rounded hover:bg-[#161616] group"
+                    >
+                      <span className="truncate flex-1 text-emerald-400">{file}</span>
+                      <button
+                        onClick={() => stageFile(file)}
+                        className="text-[12px] text-emerald-400 hover:text-emerald-300 font-bold px-1"
+                        title="Stage File"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. HISTORY ARCHIVE TAB */}
+      {sidebarTab === 'history' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="h-9 px-3 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0e0e0e]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+              Conversation Archive
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {conversations.length === 0 ? (
+              <div className="p-4 text-center text-[#777777] text-[12px]">No archives found.</div>
+            ) : (
+              conversations.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    selectConversation(c.id);
+                    setActiveView('studio');
+                  }}
+                  className="p-2.5 rounded-lg bg-[#121212] hover:bg-[#1a1a1a] border border-[#202020] cursor-pointer transition-colors"
+                >
+                  <div className="text-[12.5px] font-medium text-[#f0f0f0] truncate">{c.title}</div>
+                  <div className="text-[10px] text-[#777777] font-mono mt-1 flex items-center justify-between">
+                    <span>{c.messages.length} messages</span>
+                    <span>{new Date(c.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 6. AUTOMATIONS & CUSTOMIZATIONS */}
+      {sidebarTab === 'automations' && (
+        <div className="flex-1 p-3 text-[12px] text-[#888888]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+            Automations & Watchers
+          </span>
+          <p className="mt-2 text-[11px] text-[#666666] leading-relaxed">
+            Automations execute commands on save, build, or timers. Configure rules in the main canvas.
+          </p>
+        </div>
+      )}
+
+      {sidebarTab === 'customizations' && (
+        <div className="flex-1 p-3 text-[12px] text-[#888888]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+            Customizations
+          </span>
+          <p className="mt-2 text-[11px] text-[#666666] leading-relaxed">
+            Define system personas, rules, and model parameters in the main workspace.
+          </p>
+        </div>
+      )}
     </aside>
   );
 };
