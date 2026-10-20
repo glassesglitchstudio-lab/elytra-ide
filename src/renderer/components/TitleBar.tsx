@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Minus, Square, X, ChevronDown, Sparkles, GitBranch, Folder } from 'lucide-react';
+import { Minus, Square, X, ChevronDown, Sparkles, GitBranch, Folder, Code2 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
 
@@ -181,23 +181,25 @@ export const TitleBar: React.FC = () => {
         <div className="flex items-center gap-0.5 bg-[#141414] border border-[#222222] rounded-full p-0.5 shadow-inner">
           <button
             onClick={() => setActiveView('studio')}
-            className={`px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
               activeView === 'studio'
                 ? 'bg-[#262626] text-white shadow-sm'
                 : 'text-[#888888] hover:text-[#e5e5e5]'
             }`}
           >
-            💬 Studio
+            <Sparkles size={11} className={activeView === 'studio' ? 'text-sky-400' : 'text-[#777777]'} />
+            <span>Studio</span>
           </button>
           <button
             onClick={() => setActiveView('editor')}
-            className={`px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
               activeView === 'editor'
                 ? 'bg-[#262626] text-white shadow-sm'
                 : 'text-[#888888] hover:text-[#e5e5e5]'
             }`}
           >
-            💻 Editor
+            <Code2 size={11} className={activeView === 'editor' ? 'text-emerald-400' : 'text-[#777777]'} />
+            <span>Editor</span>
           </button>
         </div>
 

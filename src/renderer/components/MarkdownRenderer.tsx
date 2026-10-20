@@ -41,7 +41,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   let thoughtContent: string | null = null;
   let remainingContent = content;
 
-  const thoughtRegex = /### 🧠 Thought Process[^\n]*\n([\s\S]*?)(?=\n## |\n### |\n\n[A-Z]|\n---|\n\[⚡|\n> ⚡|$)/i;
+  const thoughtRegex = /### (?:\u{1F9E0}\s*)?Thought Process[^\n]*\n([\s\S]*?)(?=\n## |\n### |\n\n[A-Z]|\n---|\n\[|\n>|$)/iu;
   const thoughtMatch = content.match(thoughtRegex);
 
   if (thoughtMatch) {
@@ -68,8 +68,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     if (currentTextLines.length > 0) {
       const textBlock = currentTextLines.join('\n').trim();
       if (textBlock) {
-        if (textBlock.includes('⚠️ API') || textBlock.includes('⚠️ Error') || textBlock.includes('Hata:')) {
-          blocks.push({ type: 'error', text: textBlock });
+        if (textBlock.includes('API Error') || textBlock.includes('Diagnostic') || textBlock.includes('Hata:') || textBlock.includes('Bağlantı Hatası:')) {
+          blocks.push({ type: 'error', text: textBlock.replace(/^[\u{26A0}\s]+/, '') });
         } else {
           blocks.push({ type: 'text', text: textBlock });
         }
@@ -81,10 +81,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Tool call pattern: [⚡ tool_call: ...] or > ⚡ **Tool:** ...
-    if (line.match(/^[>\[]\s*⚡\s*\**Tool/i)) {
+    // Tool call pattern: [Tool: ...] or > [Tool Execution: ...]
+    if (line.match(/^[>\[]\s*(?:\u{26A1}\s*)?(?:\**Tool|\[Tool|\**Execution)/iu)) {
       flushText();
-      blocks.push({ type: 'tool', text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '') });
+      blocks.push({ type: 'tool', text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{26A1}\s]+/, '') });
       continue;
     }
 
@@ -174,8 +174,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <Terminal size={13} className="text-emerald-400" />
               <span className="flex-1 truncate">{block.text}</span>
-              <span className="text-[10px] text-emerald-400/90 font-medium px-1.5 py-0.5 bg-emerald-950/40 rounded border border-emerald-800/40">
-                Done ✓
+              <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium px-1.5 py-0.5 bg-emerald-950/40 rounded border border-emerald-800/40">
+                <Check size={11} />
+                <span>Done</span>
               </span>
             </div>
           );
@@ -237,7 +238,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
                     ) : (
                       <FileCode size={12} />
                     )}
-                    <span>{isApplied ? 'Applied ✓' : 'Apply to Editor'}</span>
+                    <span>{isApplied ? 'Applied' : 'Apply to Editor'}</span>
                   </button>
                 </div>
               </div>

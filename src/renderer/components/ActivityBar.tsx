@@ -143,7 +143,7 @@ export const ActivityBar: React.FC = () => {
             <Settings size={18} />
           </button>
           <div className="absolute left-12 px-2 py-1 bg-[#1a1a1a] border border-[#2a2a2a] text-[11px] text-[#e5e5e5] rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-            Settings (⚙️)
+            Settings
           </div>
         </div>
       </div>

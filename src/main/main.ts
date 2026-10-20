@@ -633,24 +633,24 @@ function setupIpcHandlers() {
         const isTurkish = /[çğıöşüÇĞİÖŞÜ]|\b(nasıl|nedir|nerede|çalıştır|yap|kod|hata|düzelt|ekle|aç|yardım|test|neden|öğren|bak|yaz|oluştur|bu|ile|ve)\b/i.test(lastUserMessage);
 
         const thinkingPhase = isTurkish
-          ? `### 🧠 Thought Process (${thinkingLevel} Akıl Yürütme Bütçesi · 0.8s)
-- 🎯 **Hedef Analizi:** Kullanıcının "${lastUserMessage.slice(0, 60)}" komutu ve niyet haritası çıkarıldı.
-- 📁 **Çalışma Alanı Taraması:** \`${projectName}\` dizini ve dosya hiyerarşisi analiz edildi.
-- ⚡ **Tespit Edilen Varlıklar:** ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Bağımsız oturum'}.
-- 🛠️ **Mimari Karar:** Gerçek bağlam odaklı, doğrudan uygulanabilir çözüm sentezleniyor.\n\n`
-          : `### 🧠 Thought Process (${thinkingLevel} Reasoning Budget · 0.8s)
-- 🎯 **Goal Parsing:** Analyzed intent for "${lastUserMessage.slice(0, 60)}".
-- 📁 **Workspace Inspection:** Inspected \`${projectName}\` directory structure.
-- ⚡ **Detected Artifacts:** ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Standalone session'}.
-- 🛠️ **Architectural Decision:** Formulating clean, executable recommendations.\n\n`;
+          ? `### Thought Process (${thinkingLevel} Akıl Yürütme Bütçesi · 0.8s)
+- [Hedef Analizi]: Kullanıcının "${lastUserMessage.slice(0, 60)}" komutu ve niyet haritası çıkarıldı.
+- [Çalışma Alanı]: \`${projectName}\` dizini ve dosya hiyerarşisi analiz edildi.
+- [Tespit Edilen Varlıklar]: ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Bağımsız oturum'}.
+- [Mimari Karar]: Gerçek bağlam odaklı, doğrudan uygulanabilir çözüm sentezleniyor.\n\n`
+          : `### Thought Process (${thinkingLevel} Reasoning Budget · 0.8s)
+- [Goal Parsing]: Analyzed intent for "${lastUserMessage.slice(0, 60)}".
+- [Workspace Inspection]: Inspected \`${projectName}\` directory structure.
+- [Detected Artifacts]: ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Standalone session'}.
+- [Architectural Decision]: Formulating clean, executable recommendations.\n\n`;
 
-        const toolBadge = `> ⚡ **Tool:** \`inspect_workspace_manifest\` → ${pkgJson ? 'package.json incelendi ✓' : 'Çalışma alanı hazır ✓'}\n\n`;
+        const toolBadge = `> [Tool Execution: inspect_workspace_manifest] -> ${pkgJson ? 'package.json incelendi' : 'Çalışma alanı hazır'}\n\n`;
 
         let responseBody = '';
 
         if (lastUserMessage.startsWith('/explain') || lastUserMessage.toLowerCase().includes('mimari') || lastUserMessage.toLowerCase().includes('architecture')) {
           if (isTurkish) {
-            responseBody = `## 📖 Kod Mimarisi ve Çalışma Prensipleri
+            responseBody = `## Kod Mimarisi ve Çalışma Prensipleri
 
 Projeniz (\`${projectName}\`) mimarisi incelendi:
 1. **Modüler Katman Ayrımı:** UI bileşenleri, merkezi durum yönetimi (Zustand) ve sistem süreçleri (IPC) birbirinden izole edilmiştir.
@@ -668,7 +668,7 @@ export interface AppExecutionContext {
 
 Daha derinlemesine incelemek istediğiniz özel bir bileşen var mı?`;
           } else {
-            responseBody = `## 📖 Codebase Architecture
+            responseBody = `## Codebase Architecture
 
 Analysis for \`${projectName}\`:
 1. **Separation of Concerns:** Clear boundary between renderer UI, reactive store, and main IPC runtime.
@@ -687,7 +687,7 @@ Would you like to examine a specific module or write unit tests?`;
           }
         } else if (lastUserMessage.startsWith('/fix') || lastUserMessage.toLowerCase().includes('hata') || lastUserMessage.toLowerCase().includes('fix')) {
           if (isTurkish) {
-            responseBody = `## 🔧 Tanılama & Hata Onarımı
+            responseBody = `## Tanılama ve Hata Onarımı
 
 Çalışma alanı incelendi ve tespit edilen koruyucu iyileştirmeler:
 - Null/Undefined referans korumaları kontrol edildi.
@@ -707,7 +707,7 @@ export function safeExecute<T>(fn: () => T, fallback: T): T {
 
 Bu kodu doğrudan aktif editörünüze eklemek için yukarıdaki **Editöre Aktar** butonuna basabilirsiniz.`;
           } else {
-            responseBody = `## 🔧 Diagnostics & Bug Repair
+            responseBody = `## Diagnostics & Bug Repair
 
 Workspace review results:
 - Type validations and async promises inspected.
@@ -728,7 +728,7 @@ Click **Apply to Editor** above to inject this snippet directly into your active
           }
         } else if (lastUserMessage.startsWith('/test') || lastUserMessage.toLowerCase().includes('test')) {
           if (isTurkish) {
-            responseBody = `## 🧪 Birim Test Paketi
+            responseBody = `## Birim Test Paketi
 
 Bileşenleriniz için kapsamlı test senaryoları:
 
@@ -750,7 +750,7 @@ describe('${projectName} Test Paketi', () => {
 
 Terminalde \`npm test\` komutunu çalıştırarak bu testleri hemen yürütebilirsiniz.`;
           } else {
-            responseBody = `## 🧪 Comprehensive Test Suite
+            responseBody = `## Comprehensive Test Suite
 
 Here is a ready-to-run unit test suite:
 
@@ -778,7 +778,7 @@ Run \`npm test\` in your terminal panel anytime.`;
               .map(([k, v]) => `- \`npm run ${k}\`: ${v}`)
               .join('\n');
             responseBody = isTurkish
-              ? `## 🚀 Projeyi Çalıştırma Rehberi
+              ? `## Projeyi Çalıştırma Rehberi
 
 \`package.json\` dosyanızdaki mevcut scriptler tespit edildi:
 ${scriptsList}
@@ -792,7 +792,7 @@ Projeyi paketlemek ve exe oluşturmak için:
 \`\`\`bash
 npm run pack:win
 \`\`\``
-              : `## 🚀 Execution & Build Instructions
+              : `## Execution & Build Instructions
 
 Detected scripts from your \`package.json\`:
 ${scriptsList}
@@ -808,7 +808,7 @@ npm run pack:win
 \`\`\``;
           } else {
             responseBody = isTurkish
-              ? `## 🚀 Proje Başlatma Adımları
+              ? `## Proje Başlatma Adımları
 
 1. Bağımlılıkları yükleyin:
 \`\`\`bash
@@ -818,7 +818,7 @@ npm install
 \`\`\`bash
 npm run dev
 \`\`\``
-              : `## 🚀 Project Execution Steps
+              : `## Project Execution Steps
 
 1. Install dependencies:
 \`\`\`bash
@@ -831,14 +831,14 @@ npm run dev
           }
         } else {
           if (isTurkish) {
-            responseBody = `## ⚡ Elythra Code Asistanı
+            responseBody = `## Elythra Code Asistanı
 
 Sorunuzu inceledim:
 > **"${lastUserMessage}"**
 
 ### Öneriler ve Çözüm:
 1. **Aktif Çalışma Alanı:** \`${projectName}\` ${projectFiles.length > 0 ? `(${projectFiles.slice(0, 5).join(', ')})` : ''}
-2. **Doğrudan Model Erişimi:** Şu anda **Dahili Elythra Motoru** devrededir. Gemini 2.0 Flash, Claude 3.5 Sonnet veya DeepSeek R1 modellerine bağlanmak için sol alttaki **Ayarlar (⚙️)** butonundan API anahtarınızı girebilirsiniz.
+2. **Doğrudan Model Erişimi:** Şu anda **Dahili Elythra Motoru** devrededir. Gemini 2.0 Flash, Claude 3.5 Sonnet veya DeepSeek R1 modellerine bağlanmak için sol alttaki **Ayarlar** butonundan API anahtarınızı girebilirsiniz.
 3. **Uygulanabilir Kod:**
 
 \`\`\`typescript
@@ -855,14 +855,14 @@ export async function executeWorkspaceTask(task: string) {
 
 Bir sonraki adımda ne yapmak istersiniz? Editörde kod yazabilir, terminalde komut çalıştırabilir veya yeni bir dosya oluşturabiliriz.`;
           } else {
-            responseBody = `## ⚡ Elythra Code Assistant
+            responseBody = `## Elythra Code Assistant
 
 I reviewed your instruction:
 > **"${lastUserMessage}"**
 
 ### Recommendations & Architecture:
 1. **Active Workspace:** \`${projectName}\`
-2. **BYOK Live Models:** Using the **Built-in Elythra Engine**. To connect directly to Gemini 2.0 Flash, Claude 3.5 Sonnet, or DeepSeek R1, enter your API key under **Settings (⚙️)**.
+2. **BYOK Live Models:** Using the **Built-in Elythra Engine**. To connect directly to Gemini 2.0 Flash, Claude 3.5 Sonnet, or DeepSeek R1, enter your API key under **Settings**.
 3. **Executable Implementation:**
 
 \`\`\`typescript

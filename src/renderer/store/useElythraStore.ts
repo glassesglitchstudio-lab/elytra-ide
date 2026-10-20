@@ -216,7 +216,7 @@ function ensureApiPolyfill() {
     saveAutomations: async (a: any) => { mockStorage.automations = a; return true; },
     sendAIChat: async (params: any) => {
       setTimeout(() => {
-        const text = `### 🧠 Thought Process (High Reasoning Budget · 0.9s)\n- 🔍 Kullanıcı komutu analiz edildi: "${params.messages[params.messages.length - 1]?.content || ''}"\n- 📂 Çalışma alanı yapılandırması kontrol edildi.\n- 💡 Çözüm üretiliyor.\n\n> ⚡ **Tool:** \`scan_workspace\` → Tamamlandı ✓\n\n## ⚡ Elythra Code Çözüm Önerisi\n\n\`\`\`typescript\n// Örnek Kod\nexport function runStudio() {\n  console.log("Elythra Antigravity Twin Studio Aktif");\n}\n\`\`\`\n`;
+        const text = `### Thought Process (High Reasoning Budget · 0.9s)\n- [Analiz]: Kullanıcı komutu incelendi: "${params.messages[params.messages.length - 1]?.content || ''}"\n- [Çalışma Alanı]: Çalışma alanı yapılandırması kontrol edildi.\n- [Çözüm]: Çözüm üretiliyor.\n\n> [Tool Execution: scan_workspace] -> Tamamlandı\n\n## Elythra Code Çözüm Önerisi\n\n\`\`\`typescript\n// Örnek Kod\nexport function runStudio() {\n  console.log("Elythra Studio Aktif");\n}\n\`\`\`\n`;
         (window as any)._streamCallback?.({ chunk: text });
         (window as any)._streamCallback?.({ done: true });
       }, 500);
@@ -313,7 +313,7 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
           const errorMsg: ChatMessage = {
             id: String(Date.now()),
             role: 'assistant',
-            content: `⚠️ API / Model Bağlantı Hatası:\n${data.error}\n\nLütfen Ayarlar (⚙️) panelinden API anahtarınızı veya model seçiminizi kontrol edin.`,
+            content: `API / Model Bağlantı Hatası:\n${data.error}\n\nLütfen Ayarlar panelinden API anahtarınızı veya model seçiminizi kontrol edin.`,
             timestamp: Date.now(),
             model: get().selectedModel,
           };
