@@ -17,6 +17,9 @@ import {
   Sliders,
   Brain,
   Zap,
+  Key,
+  AlertCircle,
+  Settings,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -174,7 +177,47 @@ export const HomeScreen: React.FC = () => {
     permissionMode,
     setPermissionMode,
     startNewConversation,
+    settings,
+    setActiveModal,
   } = useElythraStore();
+
+  const apiKeys = settings?.apiKeys || {};
+  const hasAnyProvider = Object.entries(apiKeys).some(([_, val]) => {
+    return typeof val === 'string' && val.trim().length > 0;
+  });
+
+  const isModelSupported = (m: ModelItem) => {
+    if (m.category === 'free') {
+      return !!apiKeys.openrouter?.trim();
+    }
+    if (m.category === 'core') {
+      return !!apiKeys.customEndpoint?.trim();
+    }
+    if (m.category === 'pro') {
+      if (apiKeys.openrouter?.trim()) return true;
+      if (m.id.includes('claude') && apiKeys.anthropic?.trim()) return true;
+      if (m.id.includes('deepseek') && apiKeys.deepseek?.trim()) return true;
+      if (m.id.includes('llama') && apiKeys.groq?.trim()) return true;
+      if (m.id.includes('gpt') && apiKeys.openai?.trim()) return true;
+      if (m.id.includes('gemini') && apiKeys.gemini?.trim()) return true;
+      return false;
+    }
+    return false;
+  };
+
+  const freeModels = AVAILABLE_MODELS.filter((m) => m.category === 'free' && isModelSupported(m));
+  const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
+  const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
+  const allAvailableModels = [...freeModels, ...coreModels, ...proModels];
+
+  useEffect(() => {
+    if (hasAnyProvider && allAvailableModels.length > 0) {
+      const isValid = allAvailableModels.some((m) => m.name === selectedModel);
+      if (!isValid) {
+        setSelectedModel(allAvailableModels[0].name);
+      }
+    }
+  }, [hasAnyProvider, allAvailableModels.length, selectedModel]);
 
   const [input, setInput] = useState('');
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
@@ -389,90 +432,152 @@ export const HomeScreen: React.FC = () => {
                   setShowThinkingDropdown(false);
                   setShowPermDropdown(false);
                 }}
-                className="flex items-center gap-1 text-[11px] font-medium text-[#d1d5db] hover:text-white px-2.5 py-1 rounded-full bg-[#1c202a] hover:bg-[#262c3a] border border-[#2a3040] transition-colors"
+                className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${
+                  !hasAnyProvider
+                    ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
+                    : 'text-[#d1d5db] hover:text-white bg-[#1c202a] hover:bg-[#262c3a] border-[#2a3040]'
+                }`}
               >
-                <Sparkles size={11} className="text-sky-400" />
-                <span className="truncate max-w-[140px]">{selectedModel}</span>
+                {!hasAnyProvider ? (
+                  <Key size={11} className="text-amber-400" />
+                ) : (
+                  <Sparkles size={11} className="text-sky-400" />
+                )}
+                <span className="truncate max-w-[140px]">
+                  {!hasAnyProvider ? 'Sağlayıcı Yok' : selectedModel}
+                </span>
                 <ChevronDown size={11} className="text-[#888888]" />
               </button>
 
               {showModelDropdown && (
                 <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50 max-h-96 overflow-y-auto">
-                  {/* Category 1: Free Tier */}
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#10141a]">
-                    <span>Ücretsiz Modeller (OpenRouter Free)</span>
-                    <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">50 istek/gün</span>
-                  </div>
-                  {AVAILABLE_MODELS.filter((m) => m.category === 'free').map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedModel(m.name);
-                        setShowModelDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                        selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span>{m.name}</span>
-                        <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                  {!hasAnyProvider ? (
+                    <div className="p-4 text-center space-y-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto text-amber-400">
+                        <Key size={18} />
                       </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
-                        {m.tag}
-                      </span>
-                    </button>
-                  ))}
+                      <div className="space-y-1">
+                        <div className="text-[13px] font-semibold text-white">Kayıtlı Sağlayıcı Yok</div>
+                        <p className="text-[11px] text-[#888888] leading-relaxed">
+                          Model seçebilmek ve yanıt alabilmek için önce Ayarlar'dan en az bir API anahtarı (OpenRouter, Gemini vb.) veya özel endpoint bağlamalısınız.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowModelDropdown(false);
+                          setActiveModal('settings');
+                        }}
+                        className="w-full py-2 px-3 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Settings size={13} />
+                        <span>Sağlayıcı Bağla (Ayarlar)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Category 1: Free Tier */}
+                      {freeModels.length > 0 && (
+                        <div>
+                          <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#10141a]">
+                            <span>Ücretsiz Modeller (OpenRouter Free)</span>
+                            <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">50 istek/gün</span>
+                          </div>
+                          {freeModels.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedModel(m.name);
+                                setShowModelDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
+                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
+                                {m.tag}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                  {/* Category 2: Core Model */}
-                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                    Özel Stüdyo Modeli
-                  </div>
-                  {AVAILABLE_MODELS.filter((m) => m.category === 'core').map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedModel(m.name);
-                        setShowModelDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                        selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span>{m.name}</span>
-                        <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                      </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
-                        {m.tag}
-                      </span>
-                    </button>
-                  ))}
+                      {/* Category 2: Core Model */}
+                      {coreModels.length > 0 && (
+                        <div>
+                          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
+                            Özel Stüdyo Modeli
+                          </div>
+                          {coreModels.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedModel(m.name);
+                                setShowModelDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
+                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
+                                {m.tag}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                  {/* Category 3: Pro BYOK */}
-                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                    Pro Modeller (Kredili / Kendi Key'iniz)
-                  </div>
-                  {AVAILABLE_MODELS.filter((m) => m.category === 'pro').map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedModel(m.name);
-                        setShowModelDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                        selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span>{m.name}</span>
-                        <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                      {/* Category 3: Pro BYOK */}
+                      {proModels.length > 0 && (
+                        <div>
+                          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
+                            Pro Modeller (Kredili / Kendi Key'iniz)
+                          </div>
+                          {proModels.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedModel(m.name);
+                                setShowModelDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
+                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c202a] text-[#888888]">
+                                {m.tag}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="p-2 border-t border-[#222530] bg-[#0e1014] flex items-center justify-between text-[11px] text-[#777777] mt-1">
+                        <span>Aktif Sağlayıcılar Bağlı</span>
+                        <button
+                          onClick={() => {
+                            setShowModelDropdown(false);
+                            setActiveModal('settings');
+                          }}
+                          className="text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1"
+                        >
+                          <Settings size={11} />
+                          <span>Yönet</span>
+                        </button>
                       </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c202a] text-[#888888]">
-                        {m.tag}
-                      </span>
-                    </button>
-                  ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>

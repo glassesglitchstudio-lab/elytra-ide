@@ -225,31 +225,65 @@ export const SettingsModal: React.FC = () => {
 
             {activeTab === 'models' && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-[#8a8a8a] text-[12px] mb-1">Default Model</label>
-                  <select
-                    value={formData.defaultModel}
-                    onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
-                    className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-2 text-[#e5e5e5] focus:outline-none text-[13px]"
-                  >
-                    <optgroup label="Ücretsiz Modeller (OpenRouter Free)">
-                      <option value="Nemotron 3.5 Lightning">Nemotron 3.5 Lightning (Ultra Hızlı)</option>
-                      <option value="Nemotron Reasoning 30B">Nemotron Reasoning 30B (Akıl Yürütme)</option>
-                      <option value="Laguna 2.1 Coder">Laguna 2.1 Coder (Mimari & Fix)</option>
-                      <option value="MiniMax 3.1 Flash">MiniMax 3.1 Flash (Hafif Asistan)</option>
-                    </optgroup>
-                    <optgroup label="Özel Stüdyo Modeli">
-                      <option value="0.1-Pro (27B Çift Beyin)">0.1-Pro (27B Çift Beyin)</option>
-                    </optgroup>
-                    <optgroup label="Pro Modeller (Kredili / Kendi Key'iniz)">
-                      <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                      <option value="DeepSeek V3">DeepSeek V3</option>
-                      <option value="Llama 3.3 70B">Llama 3.3 70B</option>
-                      <option value="GPT-4o">GPT-4o</option>
-                      <option value="Gemini 2.5 Flash">Gemini 2.5 Flash</option>
-                    </optgroup>
-                  </select>
-                </div>
+                {(() => {
+                  const keys = formData.apiKeys || {};
+                  const hasOpenRouter = !!keys.openrouter?.trim();
+                  const hasCustom = !!keys.customEndpoint?.trim();
+                  const hasDirectPro = !!(keys.anthropic?.trim() || keys.openai?.trim() || keys.deepseek?.trim() || keys.groq?.trim() || keys.gemini?.trim());
+                  const hasAny = hasOpenRouter || hasCustom || hasDirectPro || !!keys.ollamaUrl?.trim();
+
+                  if (!hasAny) {
+                    return (
+                      <div className="p-4 bg-[#1b1712] border border-amber-500/20 rounded-btn text-center space-y-2">
+                        <div className="text-[12px] font-medium text-amber-400">⚠️ Henüz Bir Sağlayıcı Bağlanmadı</div>
+                        <p className="text-[11px] text-[#8a8a8a]">
+                          Varsayılan model seçebilmek için lütfen sol menüdeki <b>API Keys</b> sekmesinden bir API anahtarı (OpenRouter, Gemini vb.) veya özel endpoint bağlayın.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('keys')}
+                          className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded text-[11px] font-medium transition-colors"
+                        >
+                          API Keys Sekmesine Git
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div>
+                      <label className="block text-[#8a8a8a] text-[12px] mb-1">Default Model</label>
+                      <select
+                        value={formData.defaultModel}
+                        onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
+                        className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-2 text-[#e5e5e5] focus:outline-none text-[13px]"
+                      >
+                        {hasOpenRouter && (
+                          <optgroup label="Ücretsiz Modeller (OpenRouter Free)">
+                            <option value="Nemotron 3.5 Lightning">Nemotron 3.5 Lightning (Ultra Hızlı)</option>
+                            <option value="Nemotron Reasoning 30B">Nemotron Reasoning 30B (Akıl Yürütme)</option>
+                            <option value="Laguna 2.1 Coder">Laguna 2.1 Coder (Mimari & Fix)</option>
+                            <option value="MiniMax 3.1 Flash">MiniMax 3.1 Flash (Hafif Asistan)</option>
+                          </optgroup>
+                        )}
+                        {hasCustom && (
+                          <optgroup label="Özel Stüdyo Modeli">
+                            <option value="0.1-Pro (27B Çift Beyin)">0.1-Pro (27B Çift Beyin)</option>
+                          </optgroup>
+                        )}
+                        {(hasOpenRouter || hasDirectPro) && (
+                          <optgroup label="Pro Modeller (Kredili / Kendi Key'iniz)">
+                            {(hasOpenRouter || keys.anthropic?.trim()) && <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>}
+                            {(hasOpenRouter || keys.deepseek?.trim()) && <option value="DeepSeek V3">DeepSeek V3</option>}
+                            {(hasOpenRouter || keys.groq?.trim()) && <option value="Llama 3.3 70B">Llama 3.3 70B</option>}
+                            {(hasOpenRouter || keys.openai?.trim()) && <option value="GPT-4o">GPT-4o</option>}
+                            {(hasOpenRouter || keys.gemini?.trim()) && <option value="Gemini 2.5 Flash">Gemini 2.5 Flash</option>}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  );
+                })()}
 
                 <div>
                   <label className="block text-[#8a8a8a] text-[12px] mb-1">Thinking Depth / Reasoning Budget</label>
