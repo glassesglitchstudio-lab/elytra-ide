@@ -2,14 +2,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { Plus, X, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, X, Trash2, Sparkles } from 'lucide-react';
 import { useElythraStore } from '../store/useElythraStore';
 
 export const TerminalPanel: React.FC = () => {
-  const { isTerminalOpen, toggleTerminal, activeProject, terminalHeight } = useElythraStore();
+  const {
+    isTerminalOpen,
+    toggleTerminal,
+    activeProject,
+    terminalHeight,
+    setActiveView,
+    setSidebarTab,
+    sendMessage,
+  } = useElythraStore();
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermInstance = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const terminalBufferRef = useRef<string>('');
 
   const [terminals, setTerminals] = useState([{ id: 'term-1', name: 'PowerShell' }]);
   const [activeTermId, setActiveTermId] = useState('term-1');
@@ -53,6 +62,8 @@ export const TerminalPanel: React.FC = () => {
 
         const unsubscribe = window.elythraAPI.onTerminalData(activeTermId, (data) => {
           term.write(data);
+          // Rolling buffer of the latest 5000 characters for instant AI diagnosis
+          terminalBufferRef.current = (terminalBufferRef.current + data).slice(-5000);
         });
 
         term.onData((data) => {
@@ -67,6 +78,21 @@ export const TerminalPanel: React.FC = () => {
       setTimeout(() => fitAddonRef.current?.fit(), 100);
     }
   }, [isTerminalOpen, activeTermId]);
+
+  const handleDebugWithAI = () => {
+    const raw = terminalBufferRef.current;
+    // Strip ANSI control characters
+    const clean = raw.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '').replace(/[\r]/g, '').trim();
+    const lastLines = clean
+      ? clean.split('\n').slice(-30).join('\n')
+      : 'Terminalde henüz bir çıktı veya hata kaydı bulunmuyor.';
+
+    const debugPrompt = `Terminalimde aşağıdaki çıktı veya hata meydana geldi. Lütfen bu hatayı analiz et, kök nedenini açıkla ve sorunu çözecek kesin terminal komutlarını ve dosya düzeltmelerini sun:\n\n\`\`\`bash\n${lastLines}\n\`\`\``;
+
+    setActiveView('studio');
+    setSidebarTab('chat');
+    sendMessage(debugPrompt);
+  };
 
   if (!isTerminalOpen) return null;
 
@@ -105,9 +131,22 @@ export const TerminalPanel: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Cursor-style Debug with AI Button */}
           <button
-            onClick={() => xtermInstance.current?.clear()}
+            onClick={handleDebugWithAI}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-md bg-gradient-to-r from-sky-500/15 to-indigo-500/15 hover:from-sky-500/25 hover:to-indigo-500/25 text-sky-300 border border-sky-500/30 transition-all shadow-sm"
+            title="Terminaldeki son çıktıyı ve hataları Elytra AI ile anında incele ve çöz"
+          >
+            <Sparkles size={12} className="text-sky-400" />
+            <span>Debug with Elytra AI</span>
+          </button>
+
+          <button
+            onClick={() => {
+              terminalBufferRef.current = '';
+              xtermInstance.current?.clear();
+            }}
             className="p-1 text-[#8a8a8a] hover:text-[#e5e5e5] rounded hover:bg-[#1f1f1f]"
             title="Clear Terminal"
           >

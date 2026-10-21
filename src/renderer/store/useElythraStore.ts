@@ -92,6 +92,10 @@ interface ElythraStore {
   saveActiveTab: () => Promise<void>;
   saveAllTabs: () => Promise<void>;
   applyCodeToFile: (code: string, lang?: string) => Promise<void>;
+  runInTerminal: (cmd: string) => void;
+  activeDiff: { path: string; name: string; original: string; modified: string } | null;
+  acceptDiff: () => Promise<void>;
+  rejectDiff: () => void;
 
   // Git Actions
   refreshGitStatus: () => Promise<void>;
@@ -511,13 +515,37 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
     }));
   },
 
+  runInTerminal: (cmd: string) => {
+    const { isTerminalOpen } = get();
+    if (!isTerminalOpen) {
+      set({ isTerminalOpen: true });
+    }
+    const cleanCmd = cmd.trim();
+    if (window.elythraAPI && cleanCmd) {
+      window.elythraAPI.terminalWrite('term-1', cleanCmd + '\r\n');
+    }
+  },
+
+  activeDiff: null,
+
   applyCodeToFile: async (code: string, lang = 'typescript') => {
     const { openTabs, activeTabPath, activeProject } = get();
 
     if (activeTabPath) {
+      const currentTab = openTabs.find((t) => t.path === activeTabPath);
+      const original = currentTab ? currentTab.content : '';
+
+      set({
+        activeDiff: {
+          path: activeTabPath,
+          name: currentTab?.name || 'file',
+          original,
+          modified: code,
+        },
+        activeView: 'editor',
+      });
+
       get().updateTabContent(activeTabPath, code);
-      await get().saveActiveTab();
-      set({ activeView: 'editor' });
       return;
     }
 
@@ -539,6 +567,20 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
       };
       set({ openTabs: [newTab], activeTabPath: scratchPath, activeView: 'editor' });
     }
+  },
+
+  acceptDiff: async () => {
+    const { activeDiff } = get();
+    if (!activeDiff) return;
+    await get().saveActiveTab();
+    set({ activeDiff: null });
+  },
+
+  rejectDiff: () => {
+    const { activeDiff } = get();
+    if (!activeDiff) return;
+    get().updateTabContent(activeDiff.path, activeDiff.original);
+    set({ activeDiff: null });
   },
 
   refreshGitStatus: async () => {
@@ -679,8 +721,41 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
 
     if (window.elythraAPI) {
       try {
+        // Real @ Mention Context Resolution (Reads actual files from disk / open tabs)
+        let enrichedContent = text;
+        const mentionMatches = Array.from(text.matchAll(/@([a-zA-Z0-9_\-\./\\]+)/g));
+        const mentions = mentionMatches.map((m) => m[1]);
+
+        if (mentions.length > 0) {
+          const injectedFiles: string[] = [];
+          const { openTabs } = get();
+          for (const mName of mentions) {
+            const matchingTab = openTabs.find((t) => t.name === mName || t.path.endsWith(mName));
+            if (matchingTab) {
+              injectedFiles.push(`\n\n--- Context File: ${matchingTab.name} ---\n\`\`\`${matchingTab.language}\n${matchingTab.content}\n\`\`\``);
+              continue;
+            }
+            if (activeProject && window.elythraAPI) {
+              try {
+                const fullPath = mName.startsWith(activeProject.path) ? mName : `${activeProject.path}/${mName}`;
+                const fileData = await window.elythraAPI.readFile(fullPath);
+                if (fileData) {
+                  injectedFiles.push(`\n\n--- Context File: ${mName} ---\n\`\`\`\n${fileData}\n\`\`\``);
+                }
+              } catch (_) {}
+            }
+          }
+          if (injectedFiles.length > 0) {
+            enrichedContent = `${text}\n\n[Referenced Project Context]${injectedFiles.join('\n')}`;
+          }
+        }
+
+        const outgoingMsgs = msgs.map((m, idx) =>
+          idx === msgs.length - 1 ? { ...m, content: enrichedContent } : m
+        );
+
         const fullReply = await window.elythraAPI.sendAIChat({
-          messages: msgs,
+          messages: outgoingMsgs,
           model: selectedModel,
           thinkingLevel,
           permissionMode,

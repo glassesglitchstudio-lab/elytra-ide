@@ -20,9 +20,10 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming }) => {
-  const { applyCodeToFile } = useElythraStore();
+  const { applyCodeToFile, runInTerminal } = useElythraStore();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [executedCmdId, setExecutedCmdId] = useState<string | null>(null);
   const [isThoughtOpen, setIsThoughtOpen] = useState(true);
 
   const handleCopy = (text: string, id: string) => {
@@ -35,6 +36,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     applyCodeToFile(code, lang);
     setAppliedId(id);
     setTimeout(() => setAppliedId(null), 2500);
+  };
+
+  const handleRunTerminal = (cmd: string, id: string) => {
+    runInTerminal(cmd);
+    setExecutedCmdId(id);
+    setTimeout(() => setExecutedCmdId(null), 2500);
   };
 
   // 1. Check for Thought Process block
@@ -210,38 +217,67 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
               className="my-3.5 rounded-xl border border-[#242424] bg-[#0c0c0c] overflow-hidden shadow-lg group"
             >
               {/* Code Header Bar */}
-              <div className="h-8 px-3.5 bg-[#141414] border-b border-[#222222] flex items-center justify-between select-none">
-                <div className="flex items-center gap-2">
-                  <Code2 size={13} className="text-[#888888]" />
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#999999]">
-                    {block.language || 'code'}
-                  </span>
-                </div>
+              {(() => {
+                const lang = (block.language || '').toLowerCase().trim();
+                const codeSnippet = (block.code || '').trim();
+                const isTerminalCmd =
+                  ['bash', 'sh', 'shell', 'zsh', 'powershell', 'cmd', 'terminal'].includes(lang) ||
+                  /^(npm|pnpm|yarn|npx|git|python|pip|pytest|cargo|docker|deno|bun|cat|ls|cd|echo|curl|wget)\b/i.test(codeSnippet);
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleCopy(block.code || '', codeId)}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-[#888888] hover:text-[#e5e5e5] hover:bg-[#222222] transition-colors"
-                    title="Copy code to clipboard"
-                  >
-                    {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                    <span>{isCopied ? 'Copied!' : 'Copy'}</span>
-                  </button>
+                return (
+                  <div className="h-8 px-3.5 bg-[#141414] border-b border-[#222222] flex items-center justify-between select-none">
+                    <div className="flex items-center gap-2">
+                      {isTerminalCmd ? (
+                        <Terminal size={13} className="text-emerald-400" />
+                      ) : (
+                        <Code2 size={13} className="text-[#888888]" />
+                      )}
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-[#999999]">
+                        {block.language || (isTerminalCmd ? 'terminal' : 'code')}
+                      </span>
+                    </div>
 
-                  <button
-                    onClick={() => handleApply(block.code || '', codeId, block.language || 'typescript')}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-sky-400 hover:text-sky-300 hover:bg-[#1a2333] transition-colors border border-sky-900/40"
-                    title="Apply code into active Monaco editor tab"
-                  >
-                    {isApplied ? (
-                      <CheckCircle2 size={12} className="text-emerald-400" />
-                    ) : (
-                      <FileCode size={12} />
-                    )}
-                    <span>{isApplied ? 'Applied' : 'Apply to Editor'}</span>
-                  </button>
-                </div>
-              </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleCopy(block.code || '', codeId)}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-[#888888] hover:text-[#e5e5e5] hover:bg-[#222222] transition-colors"
+                        title="Copy code to clipboard"
+                      >
+                        {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                        <span>{isCopied ? 'Copied!' : 'Copy'}</span>
+                      </button>
+
+                      {isTerminalCmd ? (
+                        <button
+                          onClick={() => handleRunTerminal(block.code || '', codeId)}
+                          className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-colors"
+                          title="Run this command directly in the integrated terminal"
+                        >
+                          {executedCmdId === codeId ? (
+                            <CheckCircle2 size={12} className="text-emerald-400" />
+                          ) : (
+                            <Play size={11} fill="currentColor" />
+                          )}
+                          <span>{executedCmdId === codeId ? 'Running in Terminal...' : 'Run in Terminal'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleApply(block.code || '', codeId, block.language || 'typescript')}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-sky-400 hover:text-sky-300 hover:bg-[#1a2333] transition-colors border border-sky-900/40"
+                          title="Apply code into active editor tab with Diff Review"
+                        >
+                          {isApplied ? (
+                            <CheckCircle2 size={12} className="text-emerald-400" />
+                          ) : (
+                            <FileCode size={12} />
+                          )}
+                          <span>{isApplied ? 'Applied' : 'Apply to Editor'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Code Content */}
               <div className="p-3.5 overflow-x-auto font-mono text-[12.5px] leading-relaxed text-[#d4d4d4] bg-[#0a0a0a]">

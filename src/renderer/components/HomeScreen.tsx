@@ -179,6 +179,8 @@ export const HomeScreen: React.FC = () => {
     startNewConversation,
     settings,
     setActiveModal,
+    openTabs,
+    fileTree,
   } = useElythraStore();
 
   const apiKeys = settings?.apiKeys || {};
@@ -230,6 +232,38 @@ export const HomeScreen: React.FC = () => {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Helper to extract project files for @mention
+  const flattenFiles = (items: any[], list: { name: string; path: string }[] = [], depth = 0) => {
+    if (depth > 4 || list.length > 50 || !Array.isArray(items)) return list;
+    for (const item of items) {
+      if (!item.isDirectory) {
+        list.push({ name: item.name, path: item.path });
+      } else if (item.children && !item.name.startsWith('.') && item.name !== 'node_modules' && item.name !== 'dist') {
+        flattenFiles(item.children, list, depth + 1);
+      }
+    }
+    return list;
+  };
+
+  const mentionQuery = (input.split('@').pop() || '').toLowerCase().trim();
+  const flatProjectFiles = flattenFiles(fileTree || []);
+  const mentionCandidates = [
+    ...(openTabs || []).map((t) => ({ name: t.name, path: t.path, isTab: true })),
+    ...flatProjectFiles.filter((f) => !(openTabs || []).some((t) => t.path === f.path)),
+  ]
+    .filter((f) => !mentionQuery || f.name.toLowerCase().includes(mentionQuery) || f.path.toLowerCase().includes(mentionQuery))
+    .slice(0, 8);
+
+  const handleSelectMention = (fileName: string) => {
+    const atIndex = input.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const nextInput = input.slice(0, atIndex) + `@${fileName} `;
+      setInput(nextInput);
+    }
+    setShowMentionMenu(false);
+    textareaRef.current?.focus();
+  };
 
   const activeConvo = conversations.find((c) => c.id === activeConversationId);
   const messages = activeConvo?.messages || [];
@@ -405,6 +439,40 @@ export const HomeScreen: React.FC = () => {
               <span className="text-[11px] text-[#888888] truncate">{item.desc}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Real @ Mention File Popover (Cursor Style) */}
+      {showMentionMenu && (
+        <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1.5 shadow-2xl z-50 animate-fadeIn">
+          <div className="px-3 py-1 text-[10px] font-semibold text-[#888888] uppercase tracking-wider flex items-center justify-between">
+            <span>Bağlam Ekle (@ Dosya)</span>
+            <span className="text-[9px] text-[#666666]">Dosya içeriği modele aktarılır</span>
+          </div>
+
+          {mentionCandidates.length === 0 ? (
+            <div className="px-3 py-3 text-center text-[12px] text-[#777777]">
+              Eşleşen dosya bulunamadı
+            </div>
+          ) : (
+            mentionCandidates.map((f) => (
+              <button
+                key={f.path}
+                onClick={() => handleSelectMention(f.name)}
+                className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#222634] transition-colors flex items-center justify-between text-[#e5e5e5]"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <FileCode size={13} className={f.isTab ? 'text-sky-400' : 'text-[#888888]'} />
+                  <span className="font-medium truncate">{f.name}</span>
+                </div>
+                {f.isTab && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40">
+                    Açık Sekme
+                  </span>
+                )}
+              </button>
+            ))
+          )}
         </div>
       )}
 

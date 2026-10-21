@@ -10,6 +10,9 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Sparkles,
+  FlaskConical,
+  Wand2,
 } from 'lucide-react';
 import type { FileItem } from '../../types/elythra';
 import { useElythraStore } from '../store/useElythraStore';
@@ -19,7 +22,14 @@ interface FileTreeProps {
 }
 
 export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
-  const { openFileTab, activeProject, refreshFileTree } = useElythraStore();
+  const {
+    openFileTab,
+    activeProject,
+    refreshFileTree,
+    setActiveView,
+    setSidebarTab,
+    sendMessage,
+  } = useElythraStore();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: FileItem } | null>(null);
 
@@ -96,6 +106,30 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
     setContextMenu(null);
   };
 
+  const handleAIFileAction = async (item: FileItem, type: 'explain' | 'test' | 'refactor') => {
+    setContextMenu(null);
+    if (!window.elythraAPI) return;
+    try {
+      const content = await window.elythraAPI.readFile(item.path);
+      if (!content) return;
+      const ext = item.name.split('.').pop() || 'plaintext';
+      let prompt = '';
+      if (type === 'explain') {
+        prompt = `Aşağıdaki dosyanın (${item.name}) mimarisini, ne işe yaradığını ve çalışma mantığını detaylı olarak açıkla:\n\n\`\`\`${ext}\n${content.slice(0, 5000)}\n\`\`\``;
+      } else if (type === 'test') {
+        prompt = `Aşağıdaki dosya (${item.name}) için kapsamlı birim testleri (unit tests) ve edge case senaryoları yaz:\n\n\`\`\`${ext}\n${content.slice(0, 5000)}\n\`\`\``;
+      } else if (type === 'refactor') {
+        prompt = `Aşağıdaki dosyayı (${item.name}) temiz kod (clean code) prensiplerine göre optimize et, performansını artır ve refactor edilmiş sürümünü sun:\n\n\`\`\`${ext}\n${content.slice(0, 5000)}\n\`\`\``;
+      }
+
+      setActiveView('studio');
+      setSidebarTab('chat');
+      sendMessage(prompt);
+    } catch (err) {
+      console.error('File AI action error:', err);
+    }
+  };
+
   const renderTree = (nodes: FileItem[], level = 0) => {
     return nodes.map((node) => {
       const isExp = expanded[node.path];
@@ -158,10 +192,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
       {contextMenu && (
         <div
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed bg-[#161616] border border-[#262626] rounded-btn py-1 shadow-2xl z-50 w-44 text-[12px]"
+          className="fixed bg-[#161616] border border-[#262626] rounded-xl py-1 shadow-2xl z-50 w-52 text-[12px]"
           onMouseLeave={() => setContextMenu(null)}
         >
-          {contextMenu.item.isDirectory && (
+          {contextMenu.item.isDirectory ? (
             <>
               <button
                 onClick={() => handleCreateFile(contextMenu.item.path)}
@@ -174,6 +208,28 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
                 className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
               >
                 <Folder size={13} /> New Folder
+              </button>
+              <div className="my-1 border-t border-[#1f1f1f]" />
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => handleAIFileAction(contextMenu.item, 'explain')}
+                className="w-full text-left px-3 py-1.5 text-sky-400 hover:bg-[#2a2a2a] flex items-center gap-2 font-medium"
+              >
+                <Sparkles size={13} /> Elytra ile Açıkla
+              </button>
+              <button
+                onClick={() => handleAIFileAction(contextMenu.item, 'test')}
+                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+              >
+                <FlaskConical size={13} /> Birim Testleri Üret
+              </button>
+              <button
+                onClick={() => handleAIFileAction(contextMenu.item, 'refactor')}
+                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+              >
+                <Wand2 size={13} /> Kodu Optimize Et
               </button>
               <div className="my-1 border-t border-[#1f1f1f]" />
             </>
