@@ -540,25 +540,28 @@ function setupIpcHandlers() {
     let isAnthropic = false;
     let isOllama = false;
 
-    // Route based on available BYOK keys
-    if (keys.openrouter) {
-      endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.openrouter}`;
-      headers['HTTP-Referer'] = 'https://elythra.code';
-      headers['X-Title'] = 'Elythra Code';
-      let orModel = model;
-      if (model.includes('gemini')) orModel = 'google/gemini-2.0-flash-exp:free';
-      else if (model.includes('deepseek-r1')) orModel = 'deepseek/deepseek-r1';
-      else if (model.includes('deepseek')) orModel = 'deepseek/deepseek-chat';
-      else if (model.includes('claude')) orModel = 'anthropic/claude-3.5-sonnet';
-      else if (model.includes('llama')) orModel = 'meta-llama/llama-3.3-70b-instruct';
+    // Model ID Resolver
+    const MODEL_ID_MAP: Record<string, string> = {
+      'Nemotron 3.5 Lightning': 'nvidia/nemotron-3.5-lightning:free',
+      'Nemotron Reasoning 30B': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      'Laguna 2.1 Coder': 'poolside/laguna-s-2.1:free',
+      'MiniMax 3.1 Flash': 'minimax/minimax-m3.1-flash:free',
+      '0.1-Pro (27B Çift Beyin)': 'gulmez-27b',
+      '0.1-Pro (27B)': 'gulmez-27b',
+      'Claude 3.5 Sonnet': 'anthropic/claude-3.5-sonnet',
+      'DeepSeek V3': 'deepseek/deepseek-chat',
+      'DeepSeek R1': 'deepseek/deepseek-r1',
+      'Llama 3.3 70B': 'meta-llama/llama-3.3-70b-instruct',
+      'GPT-4o': 'openai/gpt-4o',
+      'Gemini 2.5 Flash': 'google/gemini-2.5-flash',
+      'Gemini 2.0 Flash': 'google/gemini-2.5-flash',
+      'gemini-3.8-flash': 'nvidia/nemotron-3.5-lightning:free',
+    };
 
-      body = {
-        model: orModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.gemini && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
+    const targetModel = MODEL_ID_MAP[model] || model;
+
+    // 1. Direct BYOK Providers if key matches selected model
+    if (keys.gemini && (model.toLowerCase().includes('gemini') || targetModel.includes('gemini')) && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
       const geminiModel = 'gemini-2.0-flash';
       endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${keys.gemini}&alt=sse`;
       body = {
@@ -570,7 +573,7 @@ function setupIpcHandlers() {
           temperature: thinkingLevel === 'High' ? 0.7 : 0.2,
         },
       };
-    } else if (keys.anthropic) {
+    } else if (keys.anthropic && (model.toLowerCase().includes('claude') || targetModel.includes('claude'))) {
       isAnthropic = true;
       endpoint = 'https://api.anthropic.com/v1/messages';
       headers['x-api-key'] = keys.anthropic;
@@ -582,7 +585,7 @@ function setupIpcHandlers() {
         messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
         stream: true,
       };
-    } else if (keys.deepseek) {
+    } else if (keys.deepseek && (model.toLowerCase().includes('deepseek') || targetModel.includes('deepseek'))) {
       endpoint = 'https://api.deepseek.com/v1/chat/completions';
       headers['Authorization'] = `Bearer ${keys.deepseek}`;
       body = {
@@ -590,7 +593,7 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.groq) {
+    } else if (keys.groq && (model.toLowerCase().includes('llama') || targetModel.includes('llama'))) {
       endpoint = 'https://api.groq.com/openai/v1/chat/completions';
       headers['Authorization'] = `Bearer ${keys.groq}`;
       body = {
@@ -598,7 +601,7 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.openai) {
+    } else if (keys.openai && (model.toLowerCase().includes('gpt') || targetModel.includes('gpt'))) {
       endpoint = 'https://api.openai.com/v1/chat/completions';
       headers['Authorization'] = `Bearer ${keys.openai}`;
       body = {
@@ -606,11 +609,28 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.customEndpoint) {
+    } else if (keys.customEndpoint && (model.includes('0.1-Pro') || targetModel === 'gulmez-27b' || keys.customModel)) {
       endpoint = keys.customEndpoint;
       if (keys.customKey) headers['Authorization'] = `Bearer ${keys.customKey}`;
       body = {
-        model: keys.customModel || model,
+        model: keys.customModel || 'gulmez-27b',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.openrouter) {
+      // 2. OpenRouter Hub (Universal BYOK Gateway)
+      endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.openrouter}`;
+      headers['HTTP-Referer'] = 'https://elytra.code';
+      headers['X-Title'] = 'Elytra Code';
+
+      let orModel = targetModel;
+      if (orModel === 'gulmez-27b' || orModel.includes('0.1-Pro') || orModel === 'gemini-3.8-flash') {
+        orModel = 'nvidia/nemotron-3.5-lightning:free';
+      }
+
+      body = {
+        model: orModel,
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
@@ -618,7 +638,7 @@ function setupIpcHandlers() {
       isOllama = true;
       endpoint = `${keys.ollamaUrl.replace(/\/$/, '')}/api/chat`;
       body = {
-        model: model,
+        model: targetModel,
         messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
         stream: true,
       };
@@ -646,7 +666,13 @@ function setupIpcHandlers() {
 
       if (!response.ok) {
         const errText = await response.text();
-        const errorMsg = `HTTP ${response.status} ${response.statusText || 'Error'}: ${errText.slice(0, 300)}`;
+        let errorMsg = `HTTP ${response.status} ${response.statusText || 'Error'}: ${errText.slice(0, 300)}`;
+        try {
+          const errObj = JSON.parse(errText);
+          if (errObj.error?.message) {
+            errorMsg = `[Sağlayıcı Yanıtı]: ${errObj.error.message}`;
+          }
+        } catch {}
         sendChunk({ error: errorMsg });
         sendChunk({ done: true });
         return errorMsg;
@@ -697,6 +723,8 @@ function setupIpcHandlers() {
                   const parsed = JSON.parse(line.slice(6));
                   const delta =
                     parsed.choices?.[0]?.delta?.content ||
+                    parsed.choices?.[0]?.delta?.reasoning_content ||
+                    parsed.choices?.[0]?.delta?.reasoning ||
                     parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
                     '';
                   if (delta) {

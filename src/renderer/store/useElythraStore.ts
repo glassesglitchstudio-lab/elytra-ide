@@ -118,7 +118,7 @@ interface ElythraStore {
 
 const defaultSettings: ElythraSettings = {
   apiKeys: {},
-  defaultModel: 'Gemini 2.0 Flash',
+  defaultModel: 'Nemotron 3.5 Lightning',
   thinkingLevel: 'High',
   fontSize: 14,
   fontFamily: 'Inter',

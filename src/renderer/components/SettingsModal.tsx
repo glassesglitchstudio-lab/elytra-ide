@@ -230,14 +230,24 @@ export const SettingsModal: React.FC = () => {
                   <select
                     value={formData.defaultModel}
                     onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
-                    className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-2 text-[#e5e5e5] focus:outline-none"
+                    className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-2 text-[#e5e5e5] focus:outline-none text-[13px]"
                   >
-                    <option value="gemini-3.8-flash">Gemini 3.8 Flash (High)</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                    <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-                    <option value="deepseek-r1">DeepSeek R1 (Reasoning)</option>
-                    <option value="qwen-2.5-coder">Qwen 2.5 Coder 32B</option>
-                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Groq)</option>
+                    <optgroup label="Ücretsiz Modeller (OpenRouter Free)">
+                      <option value="Nemotron 3.5 Lightning">Nemotron 3.5 Lightning (Ultra Hızlı)</option>
+                      <option value="Nemotron Reasoning 30B">Nemotron Reasoning 30B (Akıl Yürütme)</option>
+                      <option value="Laguna 2.1 Coder">Laguna 2.1 Coder (Mimari & Fix)</option>
+                      <option value="MiniMax 3.1 Flash">MiniMax 3.1 Flash (Hafif Asistan)</option>
+                    </optgroup>
+                    <optgroup label="Özel Stüdyo Modeli">
+                      <option value="0.1-Pro (27B Çift Beyin)">0.1-Pro (27B Çift Beyin)</option>
+                    </optgroup>
+                    <optgroup label="Pro Modeller (Kredili / Kendi Key'iniz)">
+                      <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
+                      <option value="DeepSeek V3">DeepSeek V3</option>
+                      <option value="Llama 3.3 70B">Llama 3.3 70B</option>
+                      <option value="GPT-4o">GPT-4o</option>
+                      <option value="Gemini 2.5 Flash">Gemini 2.5 Flash</option>
+                    </optgroup>
                   </select>
                 </div>
 

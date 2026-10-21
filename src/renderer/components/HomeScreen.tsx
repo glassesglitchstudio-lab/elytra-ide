@@ -23,14 +23,90 @@ import { useElythraStore } from '../store/useElythraStore';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import type { PermissionMode, ThinkingLevel } from '../../types/elythra';
 
-const AVAILABLE_MODELS = [
-  { id: 'elythra-01-pro', name: '0.1-Pro (27B)', provider: 'Kaggle GPU Live', tag: 'Core Model' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', tag: 'Fast Reasoning' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', tag: 'Coding SOTA' },
-  { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek', tag: 'Deep Thinking' },
-  { id: 'deepseek-chat', name: 'DeepSeek V3', provider: 'DeepSeek', tag: 'Fast Chat' },
-  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq', tag: 'Ultra-Fast' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', tag: 'Multimodal' },
+interface ModelItem {
+  id: string;
+  name: string;
+  provider: string;
+  tag: string;
+  category: 'free' | 'core' | 'pro';
+}
+
+const AVAILABLE_MODELS: ModelItem[] = [
+  // 1. Ücretsiz OpenRouter Modelleri (Free Tier Key ile %100 Çalışanlar)
+  {
+    id: 'nvidia/nemotron-3.5-lightning:free',
+    name: 'Nemotron 3.5 Lightning',
+    provider: 'OpenRouter Free',
+    tag: 'Ultra-Hızlı Kod',
+    category: 'free',
+  },
+  {
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    name: 'Nemotron Reasoning 30B',
+    provider: 'OpenRouter Free',
+    tag: 'Düşünce Zinciri',
+    category: 'free',
+  },
+  {
+    id: 'poolside/laguna-s-2.1:free',
+    name: 'Laguna 2.1 Coder',
+    provider: 'OpenRouter Free',
+    tag: 'Mimari & Bugfix',
+    category: 'free',
+  },
+  {
+    id: 'minimax/minimax-m3.1-flash:free',
+    name: 'MiniMax 3.1 Flash',
+    provider: 'OpenRouter Free',
+    tag: 'Hafif & Hızlı',
+    category: 'free',
+  },
+
+  // 2. Gülmez & Çetiner Çift Beyin Modeli
+  {
+    id: 'elythra-01-pro',
+    name: '0.1-Pro (27B Çift Beyin)',
+    provider: 'Glasses Glitch (Kaggle)',
+    tag: 'Studio Core',
+    category: 'core',
+  },
+
+  // 3. Pro / BYOK Modeller (Kredili Hesap veya Kendi API Key'iniz)
+  {
+    id: 'anthropic/claude-3.5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'Anthropic / OR',
+    tag: 'Pro Coding',
+    category: 'pro',
+  },
+  {
+    id: 'deepseek/deepseek-chat',
+    name: 'DeepSeek V3',
+    provider: 'DeepSeek / OR',
+    tag: 'Pro Chat',
+    category: 'pro',
+  },
+  {
+    id: 'meta-llama/llama-3.3-70b-instruct',
+    name: 'Llama 3.3 70B',
+    provider: 'Groq / OR',
+    tag: 'Pro Ultra',
+    category: 'pro',
+  },
+  {
+    id: 'openai/gpt-4o',
+    name: 'GPT-4o',
+    provider: 'OpenAI / OR',
+    tag: 'Pro Multimodal',
+    category: 'pro',
+  },
+  {
+    id: 'google/gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'Google AI Studio',
+    tag: 'Pro Hızlı',
+    category: 'pro',
+  },
 ];
 
 const THINKING_LEVELS: ThinkingLevel[] = ['Low', 'Medium', 'High'];
@@ -321,11 +397,63 @@ export const HomeScreen: React.FC = () => {
               </button>
 
               {showModelDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-72 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#777777] uppercase tracking-wider">
-                    Model Seçin (BYOK)
+                <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50 max-h-96 overflow-y-auto">
+                  {/* Category 1: Free Tier */}
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#10141a]">
+                    <span>Ücretsiz Modeller (OpenRouter Free)</span>
+                    <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">50 istek/gün</span>
                   </div>
-                  {AVAILABLE_MODELS.map((m) => (
+                  {AVAILABLE_MODELS.filter((m) => m.category === 'free').map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setSelectedModel(m.name);
+                        setShowModelDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
+                        selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span>{m.name}</span>
+                        <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
+                        {m.tag}
+                      </span>
+                    </button>
+                  ))}
+
+                  {/* Category 2: Core Model */}
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
+                    Özel Stüdyo Modeli
+                  </div>
+                  {AVAILABLE_MODELS.filter((m) => m.category === 'core').map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setSelectedModel(m.name);
+                        setShowModelDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
+                        selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span>{m.name}</span>
+                        <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
+                        {m.tag}
+                      </span>
+                    </button>
+                  ))}
+
+                  {/* Category 3: Pro BYOK */}
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
+                    Pro Modeller (Kredili / Kendi Key'iniz)
+                  </div>
+                  {AVAILABLE_MODELS.filter((m) => m.category === 'pro').map((m) => (
                     <button
                       key={m.id}
                       onClick={() => {
