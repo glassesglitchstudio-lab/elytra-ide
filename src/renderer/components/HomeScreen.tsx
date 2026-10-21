@@ -32,38 +32,24 @@ interface ModelItem {
   name: string;
   provider: string;
   tag: string;
-  category: 'free' | 'core' | 'pro' | 'zen';
+  category: 'free' | 'core' | 'pro' | 'zen' | 'copilot';
 }
 
 const AVAILABLE_MODELS: ModelItem[] = [
-  // 1. Ücretsiz OpenRouter Modelleri (Free Tier Key ile %100 Çalışanlar)
+  // 1. GitHub Copilot (OAuth & Device Auth)
   {
-    id: 'nvidia/nemotron-3.5-lightning:free',
-    name: 'Nemotron 3.5 Lightning',
-    provider: 'OpenRouter Free',
-    tag: 'Ultra-Hızlı Kod',
-    category: 'free',
+    id: 'copilot/claude-3.5-sonnet',
+    name: 'Copilot Claude 3.5 Sonnet',
+    provider: 'GitHub Copilot',
+    tag: 'OAuth Pro',
+    category: 'copilot',
   },
   {
-    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    name: 'Nemotron Reasoning 30B',
-    provider: 'OpenRouter Free',
-    tag: 'Düşünce Zinciri',
-    category: 'free',
-  },
-  {
-    id: 'poolside/laguna-s-2.1:free',
-    name: 'Laguna 2.1 Coder',
-    provider: 'OpenRouter Free',
-    tag: 'Mimari & Bugfix',
-    category: 'free',
-  },
-  {
-    id: 'minimax/minimax-m3.1-flash:free',
-    name: 'MiniMax 3.1 Flash',
-    provider: 'OpenRouter Free',
-    tag: 'Hafif & Hızlı',
-    category: 'free',
+    id: 'copilot/gpt-4o',
+    name: 'Copilot GPT-4o',
+    provider: 'GitHub Copilot',
+    tag: 'OAuth Pro',
+    category: 'copilot',
   },
 
   // 2. OpenCode Zen Modelleri (Free & Fast AI Gateway)
@@ -96,7 +82,51 @@ const AVAILABLE_MODELS: ModelItem[] = [
     category: 'zen',
   },
 
-  // 3. Özel Endpoint / Yerel Model (vLLM / LM Studio / Ollama)
+  // 3. Ücretsiz OpenRouter & Cloud Free Tier Modelleri
+  {
+    id: 'nvidia/nemotron-3.5-lightning:free',
+    name: 'Nemotron 3.5 Lightning',
+    provider: 'OpenRouter Free',
+    tag: 'Ultra-Hızlı Kod',
+    category: 'free',
+  },
+  {
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    name: 'Nemotron Reasoning 30B',
+    provider: 'OpenRouter Free',
+    tag: 'Düşünce Zinciri',
+    category: 'free',
+  },
+  {
+    id: 'poolside/laguna-s-2.1:free',
+    name: 'Laguna 2.1 Coder',
+    provider: 'OpenRouter Free',
+    tag: 'Mimari & Bugfix',
+    category: 'free',
+  },
+  {
+    id: 'minimax/minimax-m3.1-flash:free',
+    name: 'MiniMax 3.1 Flash',
+    provider: 'OpenRouter Free',
+    tag: 'Hafif & Hızlı',
+    category: 'free',
+  },
+  {
+    id: 'cerebras/llama3.3-70b',
+    name: 'Cerebras Llama 3.3 70B',
+    provider: 'Cerebras Cloud',
+    tag: '2000+ tok/s',
+    category: 'free',
+  },
+  {
+    id: 'sambanova/Qwen2.5-Coder-32B-Instruct',
+    name: 'SambaNova Qwen 2.5 Coder',
+    provider: 'SambaNova Cloud',
+    tag: '100% Free',
+    category: 'free',
+  },
+
+  // 4. Özel Endpoint / Yerel Model (vLLM / LM Studio / Ollama)
   {
     id: 'custom-endpoint-model',
     name: 'Custom Endpoint Model',
@@ -105,7 +135,7 @@ const AVAILABLE_MODELS: ModelItem[] = [
     category: 'core',
   },
 
-  // 4. Pro / BYOK Modeller (Kredili Hesap veya Kendi API Key'iniz)
+  // 5. Pro / BYOK Modeller
   {
     id: 'anthropic/claude-3.5-sonnet',
     name: 'Claude 3.5 Sonnet',
@@ -114,10 +144,24 @@ const AVAILABLE_MODELS: ModelItem[] = [
     category: 'pro',
   },
   {
+    id: 'anthropic/claude-3-7-sonnet-20250219',
+    name: 'Claude 3.7 Sonnet',
+    provider: 'Anthropic',
+    tag: 'Thinking/Reasoning',
+    category: 'pro',
+  },
+  {
     id: 'deepseek/deepseek-chat',
     name: 'DeepSeek V3',
     provider: 'DeepSeek / OR',
     tag: 'Pro Chat',
+    category: 'pro',
+  },
+  {
+    id: 'deepseek/deepseek-r1',
+    name: 'DeepSeek R1',
+    provider: 'DeepSeek / OR',
+    tag: 'Pro Reasoner',
     category: 'pro',
   },
   {
@@ -139,6 +183,41 @@ const AVAILABLE_MODELS: ModelItem[] = [
     name: 'Gemini 2.5 Flash',
     provider: 'Google AI Studio',
     tag: 'Pro Hızlı',
+    category: 'pro',
+  },
+  {
+    id: 'mistral/codestral-latest',
+    name: 'Codestral',
+    provider: 'Mistral AI',
+    tag: 'Kod Uzmanı',
+    category: 'pro',
+  },
+  {
+    id: 'xai/grok-2-latest',
+    name: 'Grok 2',
+    provider: 'xAI',
+    tag: 'Grok Vision',
+    category: 'pro',
+  },
+  {
+    id: 'together/Qwen/Qwen2.5-Coder-32B-Instruct',
+    name: 'Together Qwen 2.5 Coder',
+    provider: 'Together AI',
+    tag: 'Cloud Coder',
+    category: 'pro',
+  },
+  {
+    id: 'perplexity/sonar-reasoning',
+    name: 'Perplexity Sonar',
+    provider: 'Perplexity AI',
+    tag: 'Web Reasoner',
+    category: 'pro',
+  },
+  {
+    id: 'cohere/command-r-plus-08-2024',
+    name: 'Cohere Command R+',
+    provider: 'Cohere',
+    tag: 'Enterprise RAG',
     category: 'pro',
   },
 ];
@@ -224,11 +303,20 @@ export const HomeScreen: React.FC = () => {
   });
 
   const isModelSupported = (m: ModelItem) => {
+    if (m.category === 'copilot' || m.provider === 'GitHub Copilot') {
+      return !!apiKeys.githubCopilot?.trim();
+    }
     if (m.category === 'zen' || m.provider === 'OpenCode Zen') {
       return !!(apiKeys.opencodeZen?.trim() || (apiKeys.customEndpoint && apiKeys.customEndpoint.includes('opencode.ai')));
     }
+    if (m.provider === 'Cerebras Cloud') {
+      return !!apiKeys.cerebras?.trim();
+    }
+    if (m.provider === 'SambaNova Cloud') {
+      return !!apiKeys.sambanova?.trim();
+    }
     if (m.category === 'free') {
-      return !!apiKeys.openrouter?.trim();
+      return !!apiKeys.openrouter?.trim() || !!apiKeys.cerebras?.trim() || !!apiKeys.sambanova?.trim();
     }
     if (m.category === 'core' || m.provider === 'Custom Endpoint') {
       return !!apiKeys.customEndpoint?.trim();
@@ -237,19 +325,25 @@ export const HomeScreen: React.FC = () => {
       if (apiKeys.openrouter?.trim()) return true;
       if (m.id.includes('claude') && apiKeys.anthropic?.trim()) return true;
       if (m.id.includes('deepseek') && apiKeys.deepseek?.trim()) return true;
-      if (m.id.includes('llama') && apiKeys.groq?.trim()) return true;
+      if (m.id.includes('llama') && (apiKeys.groq?.trim() || apiKeys.cerebras?.trim() || apiKeys.sambanova?.trim())) return true;
       if (m.id.includes('gpt') && apiKeys.openai?.trim()) return true;
       if (m.id.includes('gemini') && apiKeys.gemini?.trim()) return true;
+      if (m.id.includes('mistral') || m.id.includes('codestral')) return !!apiKeys.mistral?.trim();
+      if (m.id.includes('xai') || m.id.includes('grok')) return !!apiKeys.xai?.trim();
+      if (m.id.includes('together')) return !!apiKeys.together?.trim();
+      if (m.id.includes('perplexity') || m.id.includes('sonar')) return !!apiKeys.perplexity?.trim();
+      if (m.id.includes('cohere')) return !!apiKeys.cohere?.trim();
       return false;
     }
     return false;
   };
 
+  const copilotModels = AVAILABLE_MODELS.filter((m) => m.category === 'copilot' && isModelSupported(m));
   const zenModels = AVAILABLE_MODELS.filter((m) => m.category === 'zen' && isModelSupported(m));
   const freeModels = AVAILABLE_MODELS.filter((m) => m.category === 'free' && isModelSupported(m));
   const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
   const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
-  const allAvailableModels = [...zenModels, ...freeModels, ...coreModels, ...proModels];
+  const allAvailableModels = [...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
 
   useEffect(() => {
     if (hasAnyProvider && allAvailableModels.length > 0) {
@@ -640,6 +734,36 @@ export const HomeScreen: React.FC = () => {
                     </div>
                   ) : (
                     <>
+                      {/* Category -1: GitHub Copilot OAuth */}
+                      {copilotModels.length > 0 && (
+                        <div>
+                          <div className="px-3 py-1.5 text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center justify-between bg-[#150f22]">
+                            <span>🔗 GitHub Copilot (OAuth)</span>
+                            <span className="text-[9px] bg-purple-950/70 text-purple-300 border border-purple-800/40 px-1 rounded">Abonelik Aktif</span>
+                          </div>
+                          {copilotModels.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedModel(m.name);
+                                setShowModelDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#241838] transition-colors flex items-center justify-between ${
+                                selectedModel === m.name ? 'bg-[#241838] text-white font-medium' : 'text-[#cccccc]'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1e1330] text-purple-300 border border-purple-800/30">
+                                {m.tag}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Category 0: OpenCode Zen Gateway */}
                       {zenModels.length > 0 && (
                         <div>

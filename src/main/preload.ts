@@ -61,6 +61,13 @@ const elythraAPI: ElythraAPI = {
   getAutomations: () => ipcRenderer.invoke('storage:getAutomations'),
   saveAutomations: (automations) => ipcRenderer.invoke('storage:saveAutomations', automations),
 
+  // External Browser Link
+  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+
+  // OAuth & Device Auth
+  copilotStartDeviceAuth: () => ipcRenderer.invoke('auth:copilotStartDevice'),
+  copilotPollToken: (device_code: string) => ipcRenderer.invoke('auth:copilotPollToken', device_code),
+
   // AI
   sendAIChat: (params) => ipcRenderer.invoke('ai:sendChat', params),
   onAIStreamChunk: (callback) => {

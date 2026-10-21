@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
@@ -513,6 +513,68 @@ function setupIpcHandlers() {
   ipcMain.handle('storage:getAutomations', () => readJsonFile<AutomationRule[]>(AUTOMATIONS_FILE, []));
   ipcMain.handle('storage:saveAutomations', (_, autos: AutomationRule[]) => writeJsonFile(AUTOMATIONS_FILE, autos));
 
+  // External Browser Link
+  ipcMain.handle('app:openExternal', async (_, url: string) => {
+    try {
+      await shell.openExternal(url);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  // GitHub Copilot Device Code OAuth Flow
+  const COPILOT_CLIENT_ID = 'Ov23li8tweQw6odWQebz';
+
+  ipcMain.handle('auth:copilotStartDevice', async () => {
+    try {
+      const res = await fetch('https://github.com/login/device/code', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ElytraCode/1.0',
+        },
+        body: JSON.stringify({
+          client_id: COPILOT_CLIENT_ID,
+          scope: 'read:user',
+        }),
+      });
+      if (!res.ok) {
+        return { error: `Device auth request failed: ${res.statusText}` };
+      }
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      return { error: err.message || 'Device auth start failed' };
+    }
+  });
+
+  ipcMain.handle('auth:copilotPollToken', async (_, device_code: string) => {
+    try {
+      const res = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ElytraCode/1.0',
+        },
+        body: JSON.stringify({
+          client_id: COPILOT_CLIENT_ID,
+          device_code,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      });
+      if (!res.ok) {
+        return { error: `Poll failed: ${res.statusText}` };
+      }
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      return { error: err.message || 'Poll token failed' };
+    }
+  });
+
   // AI Chat Request Handler (Full BYOK + Smart Local Autonomous Reasoning Engine)
   ipcMain.handle('ai:sendChat', async (event, params) => {
     const settings = readJsonFile(SETTINGS_FILE, defaultSettings);
@@ -547,12 +609,27 @@ function setupIpcHandlers() {
       'Laguna 2.1 Coder': 'poolside/laguna-s-2.1:free',
       'MiniMax 3.1 Flash': 'minimax/minimax-m3.1-flash:free',
       'Claude 3.5 Sonnet': 'anthropic/claude-3.5-sonnet',
+      'Claude 3.7 Sonnet': 'anthropic/claude-3-7-sonnet-20250219',
       'DeepSeek V3': 'deepseek/deepseek-chat',
       'DeepSeek R1': 'deepseek/deepseek-r1',
       'Llama 3.3 70B': 'meta-llama/llama-3.3-70b-instruct',
       'GPT-4o': 'openai/gpt-4o',
+      'GPT-4o Mini': 'openai/gpt-4o-mini',
+      'o1': 'openai/o1',
+      'o3-mini': 'openai/o3-mini',
       'Gemini 2.5 Flash': 'google/gemini-2.5-flash',
       'Gemini 2.0 Flash': 'google/gemini-2.5-flash',
+      'Codestral': 'mistral/codestral-latest',
+      'Mistral Large': 'mistral/mistral-large-latest',
+      'Grok 2': 'xai/grok-2-latest',
+      'Cerebras Llama 3.3 70B': 'cerebras/llama3.3-70b',
+      'SambaNova Qwen 2.5 Coder': 'sambanova/Qwen2.5-Coder-32B-Instruct',
+      'Perplexity Sonar': 'perplexity/sonar-reasoning',
+      'Cohere Command R+': 'cohere/command-r-plus-08-2024',
+      'Together Qwen 2.5 Coder': 'together/Qwen/Qwen2.5-Coder-32B-Instruct',
+      'Fireworks DeepSeek V3': 'fireworks/accounts/fireworks/models/deepseek-v3',
+      'Copilot Claude 3.5 Sonnet': 'copilot/claude-3.5-sonnet',
+      'Copilot GPT-4o': 'copilot/gpt-4o',
       'Nemotron 3 Super Free (Zen)': 'nemotron-3-super-free',
       'MiniMax M2.5 Free (Zen)': 'minimax-m2.5-free',
       'Big Pickle (Zen)': 'big-pickle',
@@ -604,12 +681,99 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.openai && (model.toLowerCase().includes('gpt') || targetModel.includes('gpt'))) {
+    } else if (keys.openai && (model.toLowerCase().includes('gpt') || targetModel.includes('gpt') || targetModel.includes('o1') || targetModel.includes('o3'))) {
       endpoint = 'https://api.openai.com/v1/chat/completions';
       headers['Authorization'] = `Bearer ${keys.openai}`;
       body = {
-        model: model.includes('gpt') ? model : 'gpt-4o',
+        model: model.includes('gpt') || model.includes('o1') || model.includes('o3') ? model : 'gpt-4o',
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.githubCopilot && (model.toLowerCase().includes('copilot') || targetModel.startsWith('copilot/'))) {
+      // GitHub Copilot OAuth / Token Chat Gateway
+      endpoint = 'https://api.githubcopilot.com/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.githubCopilot}`;
+      headers['Editor-Version'] = 'vscode/1.90.0';
+      headers['Editor-Plugin-Version'] = 'copilot-chat/0.17.0';
+      headers['Copilot-Integration-Id'] = 'vscode-chat';
+      let copilotModel = targetModel.replace('copilot/', '');
+      if (copilotModel === 'copilot' || !copilotModel) copilotModel = 'claude-3.5-sonnet';
+      body = {
+        model: copilotModel,
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.cerebras && (model.toLowerCase().includes('cerebras') || targetModel.includes('cerebras'))) {
+      // Cerebras Ultra-Fast LPU
+      endpoint = 'https://api.cerebras.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.cerebras}`;
+      body = {
+        model: 'llama3.3-70b',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.sambanova && (model.toLowerCase().includes('sambanova') || targetModel.includes('sambanova'))) {
+      // SambaNova 100% Free Tier
+      endpoint = 'https://api.sambanova.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.sambanova}`;
+      let snModel = targetModel.includes('qwen') ? 'Qwen2.5-Coder-32B-Instruct' : 'Meta-Llama-3.3-70B-Instruct';
+      body = {
+        model: snModel,
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.mistral && (model.toLowerCase().includes('mistral') || model.toLowerCase().includes('codestral') || targetModel.includes('mistral') || targetModel.includes('codestral'))) {
+      // Mistral AI / Codestral
+      endpoint = 'https://api.mistral.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.mistral}`;
+      body = {
+        model: model.toLowerCase().includes('large') ? 'mistral-large-latest' : 'codestral-latest',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.xai && (model.toLowerCase().includes('grok') || targetModel.includes('xai') || targetModel.includes('grok'))) {
+      // xAI Grok
+      endpoint = 'https://api.x.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.xai}`;
+      body = {
+        model: 'grok-2-latest',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.together && (model.toLowerCase().includes('together') || targetModel.includes('together'))) {
+      // Together AI
+      endpoint = 'https://api.together.xyz/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.together}`;
+      body = {
+        model: 'Qwen/Qwen2.5-Coder-32B-Instruct',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.fireworks && (model.toLowerCase().includes('fireworks') || targetModel.includes('fireworks'))) {
+      // Fireworks AI
+      endpoint = 'https://api.fireworks.ai/inference/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.fireworks}`;
+      body = {
+        model: 'accounts/fireworks/models/qwen2p5-coder-32b-instruct',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.perplexity && (model.toLowerCase().includes('perplexity') || model.toLowerCase().includes('sonar') || targetModel.includes('perplexity'))) {
+      // Perplexity Sonar
+      endpoint = 'https://api.perplexity.ai/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.perplexity}`;
+      body = {
+        model: 'sonar-reasoning',
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.cohere && (model.toLowerCase().includes('cohere') || targetModel.includes('cohere'))) {
+      // Cohere Command R+
+      endpoint = 'https://api.cohere.com/v2/chat';
+      headers['Authorization'] = `Bearer ${keys.cohere}`;
+      body = {
+        model: 'command-r-plus-08-2024',
+        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
         stream: true,
       };
     } else if (

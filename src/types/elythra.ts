@@ -62,18 +62,35 @@ export interface AutomationRule {
 
 export interface ElythraSettings {
   apiKeys: {
+    // 1. Ücretsiz / Free Tier
     gemini?: string;
+    opencodeZen?: string;
+    groq?: string;
+    cerebras?: string;
+    sambanova?: string;
     openrouter?: string;
+
+    // 2. OAuth & Device Login
+    githubCopilot?: string;
+
+    // 3. Top-Tier BYOK
     anthropic?: string;
     openai?: string;
     deepseek?: string;
-    groq?: string;
     mistral?: string;
+    xai?: string;
+
+    // 4. Ultra-Fast Cloud & Search
+    together?: string;
+    fireworks?: string;
+    perplexity?: string;
+    cohere?: string;
+
+    // 5. Yerel & Özel
     ollamaUrl?: string;
     customEndpoint?: string;
     customKey?: string;
     customModel?: string;
-    opencodeZen?: string;
   };
   defaultModel: string;
   thinkingLevel: ThinkingLevel;
@@ -145,6 +162,22 @@ export interface ElythraAPI {
   saveConversations: (conversations: Conversation[]) => Promise<boolean>;
   getAutomations: () => Promise<AutomationRule[]>;
   saveAutomations: (automations: AutomationRule[]) => Promise<boolean>;
+
+  // External Browser Link
+  openExternal: (url: string) => Promise<boolean>;
+
+  // OAuth & Device Auth
+  copilotStartDeviceAuth: () => Promise<{
+    verification_uri?: string;
+    user_code?: string;
+    device_code?: string;
+    interval?: number;
+    error?: string;
+  }>;
+  copilotPollToken: (device_code: string) => Promise<{
+    access_token?: string;
+    error?: string;
+  }>;
 
   // AI Stream
   sendAIChat: (params: {
