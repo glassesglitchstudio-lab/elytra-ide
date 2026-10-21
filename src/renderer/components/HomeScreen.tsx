@@ -537,22 +537,22 @@ export const HomeScreen: React.FC = () => {
     if (!activeDiff) return null;
 
     return (
-      <div className="mb-3 px-3.5 py-2.5 rounded-xl bg-[#131620]/95 border border-sky-500/40 backdrop-blur-md shadow-2xl flex items-center justify-between gap-3 animate-fadeIn select-none">
+      <div className="mb-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#0d1220]/95 via-[#131b30]/95 to-[#0d1220]/95 border border-sky-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(56,189,248,0.12)] flex items-center justify-between gap-3 animate-fadeIn select-none">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 flex-shrink-0">
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex-shrink-0 shadow-inner">
             <FileCode size={16} />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-400 rounded-full border-2 border-[#131620] animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-400 rounded-full border-2 border-[#0d1220] animate-pulse" />
           </div>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[12.5px] font-semibold text-white truncate">
+              <span className="text-[12.5px] font-semibold text-white tracking-wide truncate">
                 Elytra AI Değişiklik Uyguladı
               </span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950/70 text-sky-300 border border-sky-800/40 truncate max-w-[200px]">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-700/50 truncate max-w-[200px] shadow-sm">
                 {activeDiff.name}
               </span>
             </div>
-            <span className="text-[11px] text-[#9ca3af] truncate">
+            <span className="text-[11px] text-[#9ca3af] truncate mt-0.5">
               Değişiklikleri diske kaydetmek için Accept'e, vazgeçmek için Decline'a tıklayın.
             </span>
           </div>
@@ -561,16 +561,16 @@ export const HomeScreen: React.FC = () => {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setActiveView('editor')}
-            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] text-sky-400 hover:text-sky-300 hover:bg-sky-950/40 border border-sky-900/40 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11.5px] font-medium text-sky-300 hover:text-white hover:bg-sky-950/50 border border-sky-800/40 transition-colors shadow-sm"
             title="Editörde Aç ve İncele"
           >
-            <Code2 size={12} />
+            <Code2 size={13} />
             <span>Editörde Gör</span>
           </button>
 
           <button
             onClick={rejectDiff}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-red-400 bg-red-950/40 hover:bg-red-950/70 border border-red-800/40 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-medium text-red-300 bg-red-950/50 hover:bg-red-900/60 border border-red-800/50 transition-all shadow-sm active:scale-95"
             title="Değişiklikleri iptal et ve önceki haline döndür"
           >
             <Undo2 size={13} />
@@ -579,7 +579,7 @@ export const HomeScreen: React.FC = () => {
 
           <button
             onClick={acceptDiff}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium text-white bg-emerald-600 hover:bg-emerald-500 shadow-md transition-colors"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-[12px] font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md shadow-emerald-950/40 transition-all active:scale-95"
             title="Değişiklikleri onayla ve diske kaydet"
           >
             <Check size={13} strokeWidth={2.5} />
@@ -713,7 +713,7 @@ export const HomeScreen: React.FC = () => {
       )}
 
       {/* Antigravity Prompt Capsule */}
-      <div className="bg-[#13151b] border border-[#232733] hover:border-[#383f52] focus-within:border-sky-500/50 focus-within:ring-1 focus-within:ring-sky-500/20 rounded-2xl p-3 shadow-2xl transition-all">
+      <div className="bg-[#10131b]/95 backdrop-blur-xl border border-[#232938] hover:border-[#384156] focus-within:border-sky-500/60 focus-within:ring-2 focus-within:ring-sky-500/15 focus-within:shadow-[0_0_30px_rgba(56,189,248,0.1)] rounded-2xl p-3.5 shadow-2xl transition-all duration-200">
         <textarea
           ref={textareaRef}
           value={input}
@@ -721,11 +721,11 @@ export const HomeScreen: React.FC = () => {
           onKeyDown={handleKeyDown}
           rows={1}
           placeholder="Elythra'ya herhangi bir şey sor, dosya için @, komutlar için / yaz..."
-          className="w-full min-h-[56px] max-h-[220px] bg-transparent text-[#f0f2f5] placeholder-[#6b7280] text-[14px] resize-none focus:outline-none leading-relaxed select-text font-normal"
+          className="w-full min-h-[58px] max-h-[220px] bg-transparent text-[#f8fafc] placeholder-[#64748b] text-[14px] resize-none focus:outline-none leading-relaxed select-text font-normal"
         />
 
         {/* Capsule Bottom Toolbar */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-[#1d212b] select-none">
+        <div className="flex items-center justify-between pt-2.5 border-t border-[#1d2332] select-none">
           {/* Left Options Pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Model Picker Pill */}
@@ -739,7 +739,7 @@ export const HomeScreen: React.FC = () => {
                 className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${
                   !hasAnyProvider
                     ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
-                    : 'text-[#d1d5db] hover:text-white bg-[#1c202a] hover:bg-[#262c3a] border-[#2a3040]'
+                    : 'text-[#e2e8f0] hover:text-white bg-[#151924] hover:bg-[#1e2332] border-[#273042] shadow-sm'
                 }`}
               >
                 {!hasAnyProvider ? (
@@ -1006,16 +1006,16 @@ export const HomeScreen: React.FC = () => {
                   setShowModelDropdown(false);
                   setShowPermDropdown(false);
                 }}
-                className="flex items-center gap-1 text-[11px] font-medium text-[#9ca3af] hover:text-white px-2 py-1 rounded-full bg-[#181a22] hover:bg-[#222634] border border-[#262a38] transition-colors"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-2.5 py-1 rounded-full bg-[#151924] hover:bg-[#1e2332] border border-[#273042] transition-all shadow-sm"
               >
                 <Brain size={11} className="text-purple-400" />
                 <span>Thinking: {thinkingLevel}</span>
-                <ChevronDown size={11} className="text-[#777777]" />
+                <ChevronDown size={11} className="text-[#888888]" />
               </button>
 
               {showThinkingDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50">
-                  <div className="px-3 py-1 text-[10px] font-semibold text-[#777777] uppercase tracking-wider">
+                <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#12141b]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1.5 shadow-2xl z-50">
+                  <div className="px-3 py-1 text-[10px] font-semibold text-[#888888] uppercase tracking-wider">
                     Düşünme Bütçesi
                   </div>
                   {THINKING_LEVELS.map((lvl) => (
@@ -1025,8 +1025,8 @@ export const HomeScreen: React.FC = () => {
                         setThinkingLevel(lvl);
                         setShowThinkingDropdown(false);
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                        thinkingLevel === lvl ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#202534] transition-colors flex items-center justify-between ${
+                        thinkingLevel === lvl ? 'bg-[#202534] text-white font-medium' : 'text-[#cbd5e1]'
                       }`}
                     >
                       <span>{lvl}</span>
@@ -1045,16 +1045,16 @@ export const HomeScreen: React.FC = () => {
                   setShowModelDropdown(false);
                   setShowThinkingDropdown(false);
                 }}
-                className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-[#9ca3af] hover:text-white px-2 py-1 rounded-full bg-[#181a22] hover:bg-[#222634] border border-[#262a38] transition-colors"
+                className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-2.5 py-1 rounded-full bg-[#151924] hover:bg-[#1e2332] border border-[#273042] transition-all shadow-sm"
               >
                 <Shield size={11} className="text-emerald-400" />
                 <span>{permissionMode}</span>
-                <ChevronDown size={11} className="text-[#777777]" />
+                <ChevronDown size={11} className="text-[#888888]" />
               </button>
 
               {showPermDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#777777] uppercase tracking-wider">
+                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#12141b]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1.5 shadow-2xl z-50">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#888888] uppercase tracking-wider">
                     Çalıştırma İzin Modu
                   </div>
                   {PERMISSION_MODES.map((mode) => (
@@ -1064,12 +1064,12 @@ export const HomeScreen: React.FC = () => {
                         setPermissionMode(mode.id);
                         setShowPermDropdown(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex flex-col ${
-                        permissionMode === mode.id ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
+                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#202534] transition-colors flex flex-col ${
+                        permissionMode === mode.id ? 'bg-[#202534] text-white font-medium' : 'text-[#cbd5e1]'
                       }`}
                     >
-                      <span>{mode.label}</span>
-                      <span className="text-[10px] text-[#777777]">{mode.desc}</span>
+                      <span className="font-medium">{mode.label}</span>
+                      <span className="text-[10px] text-[#888888]">{mode.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1078,10 +1078,10 @@ export const HomeScreen: React.FC = () => {
           </div>
 
           {/* Right Action Icons & Send Button */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setInput((p) => p + '@')}
-              className="p-1.5 text-[#777777] hover:text-white hover:bg-[#222634] rounded-lg transition-colors"
+              className="p-1.5 text-[#888888] hover:text-white hover:bg-[#1e2332] rounded-lg transition-colors"
               title="Bağlam Ekle (@)"
             >
               <span className="text-[13px] font-mono font-semibold">@</span>
@@ -1089,7 +1089,7 @@ export const HomeScreen: React.FC = () => {
 
             <button
               onClick={() => setInput((p) => p + '/')}
-              className="p-1.5 text-[#777777] hover:text-white hover:bg-[#222634] rounded-lg transition-colors"
+              className="p-1.5 text-[#888888] hover:text-white hover:bg-[#1e2332] rounded-lg transition-colors"
               title="Hızlı Komutlar (/)"
             >
               <span className="text-[13px] font-mono font-semibold">/</span>
@@ -1100,7 +1100,7 @@ export const HomeScreen: React.FC = () => {
               className={`p-1.5 rounded-lg transition-colors ${
                 isListening
                   ? 'text-red-400 bg-red-950/40 animate-pulse'
-                  : 'text-[#777777] hover:text-white hover:bg-[#222634]'
+                  : 'text-[#888888] hover:text-white hover:bg-[#1e2332]'
               }`}
               title="Sesle komut ver"
             >
@@ -1112,8 +1112,8 @@ export const HomeScreen: React.FC = () => {
               disabled={!input.trim() || isGenerating}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                 input.trim() && !isGenerating
-                  ? 'bg-white text-black hover:bg-[#e0e0e0] shadow-md scale-100'
-                  : 'bg-[#232733] text-[#555555] cursor-not-allowed'
+                  ? 'bg-gradient-to-tr from-sky-400 via-sky-500 to-blue-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)] hover:shadow-[0_0_18px_rgba(56,189,248,0.7)] hover:scale-105 active:scale-95'
+                  : 'bg-[#1c2230] text-[#4b5563] cursor-not-allowed'
               }`}
               title="Gönder (Enter)"
             >
@@ -1135,19 +1135,19 @@ export const HomeScreen: React.FC = () => {
         <div className="flex-1 w-full overflow-y-auto flex items-center justify-center p-4 md:p-6">
           <div className="w-full max-w-[780px] flex flex-col items-center justify-center select-none animate-fadeIn py-4">
             {/* Official Emblem */}
-            <div className="mb-4 relative group">
-              <div className="absolute -inset-3 bg-gradient-to-r from-sky-500/20 via-purple-500/20 to-emerald-500/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              <div className="relative w-18 h-18 rounded-2xl bg-[#14161c] border border-[#242834] p-3 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/40">
-                <ElythraLogo size={56} />
+            <div className="mb-5 relative group">
+              <div className="absolute -inset-4 bg-gradient-to-r from-sky-500/25 via-purple-500/20 to-emerald-500/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className="relative w-20 h-20 rounded-2xl bg-[#131620] border border-[#252b3d] p-3.5 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/50 group-hover:shadow-[0_0_30px_rgba(56,189,248,0.15)]">
+                <ElythraLogo size={60} />
               </div>
             </div>
 
             {/* Heading */}
-            <h1 className="text-3xl font-semibold tracking-tight text-[#f3f4f6] mb-2 text-center">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent mb-2.5 text-center">
               Bugün ne inşa ediyoruz?
             </h1>
 
-            <p className="text-[13.5px] text-[#8e96a4] max-w-[540px] leading-relaxed mb-6 text-center font-normal">
+            <p className="text-[13.5px] text-[#94a3b8] max-w-[540px] leading-relaxed mb-6 text-center font-normal">
               Otonom yapay zeka kodlama stüdyosu. Mimariyi planlayın, tam teşekküllü kod yazın veya hata ayıklayın.
             </p>
 
@@ -1164,16 +1164,16 @@ export const HomeScreen: React.FC = () => {
                     setInput(card.prompt);
                     textareaRef.current?.focus();
                   }}
-                  className="p-3.5 bg-[#12141a] hover:bg-[#1a1d26] border border-[#202430] hover:border-[#333a4c] rounded-xl text-left transition-all flex items-start gap-3 group shadow-sm"
+                  className="p-3.5 bg-gradient-to-br from-[#12151e]/90 to-[#0e1118]/90 hover:from-[#171b26] hover:to-[#121622] border border-[#202534] hover:border-sky-500/40 rounded-2xl text-left transition-all duration-200 flex items-start gap-3 group shadow-md hover:shadow-sky-950/20 hover:-translate-y-0.5"
                 >
-                  <div className="p-2 rounded-lg bg-[#181b24] border border-[#262b3a] group-hover:border-sky-500/30 transition-colors flex-shrink-0 mt-0.5">
+                  <div className="p-2.5 rounded-xl bg-[#171b26] border border-[#262c3e] group-hover:border-sky-500/40 group-hover:bg-[#1a2030] transition-colors flex-shrink-0 mt-0.5">
                     <card.icon size={16} className={card.iconColor} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-[#e5e7eb] group-hover:text-white transition-colors">
+                    <div className="text-[13px] font-semibold text-[#f1f5f9] group-hover:text-white transition-colors">
                       {card.title}
                     </div>
-                    <div className="text-[11.5px] text-[#717888] line-clamp-1 mt-0.5">
+                    <div className="text-[11.5px] text-[#828c9f] line-clamp-1 mt-0.5">
                       {card.desc}
                     </div>
                   </div>
@@ -1183,13 +1183,13 @@ export const HomeScreen: React.FC = () => {
 
             {/* Bottom Minimalist Status Line */}
             <div className="mt-8 text-[11px] font-mono text-[#616878] flex items-center gap-2">
-              <span>Elythra Code</span>
+              <span className="text-[#8e96a4]">Elythra Code</span>
               <span>·</span>
               <span>Multi-Model AI Engine</span>
               <span>·</span>
               <span>BYOK Ready</span>
               <span>·</span>
-              <span className="text-emerald-400/80">Autonomous Engine</span>
+              <span className="text-emerald-400 font-medium">Autonomous Engine</span>
             </div>
           </div>
         </div>
@@ -1206,24 +1206,33 @@ export const HomeScreen: React.FC = () => {
                 }`}
               >
                 {m.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-xl bg-[#14161c] border border-[#242834] flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-md">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#181c26] to-[#12151e] border border-[#262c3e] flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg shadow-black/30">
                     <ElythraLogo size={20} />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[760px] rounded-2xl p-4 transition-all shadow-md group ${
+                  className={`max-w-[760px] rounded-2xl p-4 transition-all shadow-xl group ${
                     m.role === 'user'
-                      ? 'bg-[#181b24] border border-[#262c3e] text-[#f3f4f6]'
-                      : 'bg-[#111319] border border-[#1f232e] text-[#e5e7eb]'
+                      ? 'bg-gradient-to-br from-[#1a2336] via-[#141b2a] to-[#101522] border border-sky-500/25 text-[#f8fafc] rounded-tr-sm shadow-sky-950/20'
+                      : 'bg-[#0f1218] border border-[#202534] text-[#e2e8f0] rounded-tl-sm hover:border-[#2b3348] shadow-black/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c202a] select-none text-[11px] text-[#717888]">
-                    <span className="font-medium text-[#d1d5db] flex items-center gap-1.5">
-                      {m.role === 'user' ? 'Siz' : `Elythra (${m.model || selectedModel})`}
-                    </span>
+                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c2230] select-none text-[11px] text-[#717888]">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px]">
+                      {m.role === 'user' ? (
+                        <span className="font-semibold text-sky-300 flex items-center gap-1.5">
+                          Siz
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161c28] border border-[#252f44] text-sky-300 font-medium text-[11px] shadow-sm">
+                          <Sparkles size={11} className="text-sky-400" />
+                          <span className="truncate max-w-[200px]">{m.model || selectedModel}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-[#717888] px-1.5 py-0.5 rounded bg-[#141822]/60">
                         {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <button
@@ -1232,7 +1241,7 @@ export const HomeScreen: React.FC = () => {
                           setCopiedMsgId(m.id);
                           setTimeout(() => setCopiedMsgId(null), 2000);
                         }}
-                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-0.5 rounded text-[#717888]"
+                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-all p-1 rounded-md hover:bg-[#1f2636] text-[#717888]"
                         title="İçeriği Kopyala"
                       >
                         {copiedMsgId === m.id ? (
@@ -1247,14 +1256,14 @@ export const HomeScreen: React.FC = () => {
                   {m.role === 'assistant' ? (
                     <MarkdownRenderer content={m.content} />
                   ) : (
-                    <div className="whitespace-pre-wrap leading-relaxed text-[#f3f4f6]">
+                    <div className="whitespace-pre-wrap leading-relaxed text-[#f8fafc] text-[13.5px]">
                       {m.content}
                     </div>
                   )}
                 </div>
 
                 {m.role === 'user' && (
-                  <div className="w-8 h-8 rounded-xl bg-[#1a1d26] border border-[#2a2f3f] flex items-center justify-center text-[#aaaaaa] flex-shrink-0 mt-0.5 shadow-md">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#1f273c] to-[#151c2c] border border-sky-500/30 flex items-center justify-center text-sky-300 flex-shrink-0 mt-0.5 shadow-md">
                     <User size={15} />
                   </div>
                 )}
@@ -1264,17 +1273,18 @@ export const HomeScreen: React.FC = () => {
             {/* Live Streaming Assistant Message */}
             {streamingContent && (
               <div className="flex gap-3 text-[13.5px] leading-relaxed justify-start animate-fadeIn">
-                <div className="w-8 h-8 rounded-xl bg-[#14161c] border border-[#242834] flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-md">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#181c26] to-[#12151e] border border-sky-500/30 flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg shadow-sky-500/10">
                   <ElythraLogo size={20} />
                 </div>
-                <div className="max-w-[760px] rounded-2xl p-4 bg-[#12141a] border border-[#202430] text-[#e5e7eb] shadow-md">
-                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c202a] select-none text-[11px] text-[#717888]">
-                    <span className="font-medium text-[#d1d5db]">
-                      Elythra ({selectedModel})
-                    </span>
-                    <span className="flex items-center gap-1 text-sky-400 font-mono text-[10px]">
+                <div className="max-w-[760px] rounded-2xl p-4 bg-[#0f1218] border border-sky-500/30 text-[#e2e8f0] shadow-[0_0_25px_rgba(56,189,248,0.06)] rounded-tl-sm">
+                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c2230] select-none text-[11px] text-[#717888]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161c28] border border-[#252f44] text-sky-300 font-medium text-[11px]">
+                      <Sparkles size={11} className="text-sky-400 animate-spin" style={{ animationDuration: '3s' }} />
+                      <span className="truncate max-w-[200px]">{selectedModel}</span>
+                    </div>
+                    <span className="flex items-center gap-1.5 text-sky-400 font-mono text-[10.5px] px-2 py-0.5 rounded-full bg-sky-950/70 border border-sky-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping" />
-                      Düşünüyor & Yazıyor
+                      Düşünüyor & Yazıyor...
                     </span>
                   </div>
                   <MarkdownRenderer content={streamingContent} isStreaming={true} />
@@ -1285,7 +1295,7 @@ export const HomeScreen: React.FC = () => {
           </div>
 
           {/* Bottom Fixed Prompt Capsule */}
-          <div className="p-3 bg-[#0c0e12]/95 backdrop-blur-md border-t border-[#1c202a]">
+          <div className="p-3 bg-[#0c0e12]/95 backdrop-blur-md border-t border-[#1c2230]">
             {renderDiffBar()}
             {renderPromptCapsule()}
           </div>

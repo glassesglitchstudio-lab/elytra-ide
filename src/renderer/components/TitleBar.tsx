@@ -178,12 +178,12 @@ export const TitleBar: React.FC = () => {
       {/* Center: Antigravity View Pill & Breadcrumbs */}
       <div className="flex items-center gap-3 window-no-drag">
         {/* Antigravity Dual-Surface Switcher */}
-        <div className="flex items-center gap-0.5 bg-[#141414] border border-[#222222] rounded-full p-0.5 shadow-inner">
+        <div className="flex items-center gap-0.5 bg-[#10131a] border border-[#232938] rounded-full p-0.5 shadow-inner">
           <button
             onClick={() => setActiveView('studio')}
             className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
               activeView === 'studio'
-                ? 'bg-[#262626] text-white shadow-sm'
+                ? 'bg-gradient-to-r from-[#1c2438] to-[#151a29] text-white shadow-md border border-sky-500/30'
                 : 'text-[#888888] hover:text-[#e5e5e5]'
             }`}
           >
@@ -194,7 +194,7 @@ export const TitleBar: React.FC = () => {
             onClick={() => setActiveView('editor')}
             className={`flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-medium transition-all ${
               activeView === 'editor'
-                ? 'bg-[#262626] text-white shadow-sm'
+                ? 'bg-gradient-to-r from-[#172720] to-[#121c17] text-white shadow-md border border-emerald-500/30'
                 : 'text-[#888888] hover:text-[#e5e5e5]'
             }`}
           >
@@ -233,11 +233,11 @@ export const TitleBar: React.FC = () => {
 
           <button
             onClick={() => setActiveModal('settings')}
-            className="flex items-center gap-1 text-[11px] text-[#aaaaaa] hover:text-white px-2 py-0.5 bg-[#141414] hover:bg-[#1e1e1e] border border-[#222222] rounded-full transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-[#cbd5e1] hover:text-white px-2.5 py-0.5 bg-[#141824] hover:bg-[#1a2030] border border-[#252f44] hover:border-sky-500/40 rounded-full transition-all shadow-sm"
             title="Configure Models & Keys"
           >
             <Sparkles size={11} className="text-sky-400" />
-            <span className="truncate max-w-[120px]">{selectedModel}</span>
+            <span className="truncate max-w-[140px] font-medium">{selectedModel}</span>
           </button>
         </div>
 

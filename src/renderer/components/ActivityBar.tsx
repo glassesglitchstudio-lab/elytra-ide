@@ -69,7 +69,7 @@ export const ActivityBar: React.FC = () => {
             setActiveView('studio');
             setSidebarTab('chat');
           }}
-          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#181818] text-white transition-all mb-2"
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#181d28] text-white transition-all mb-2 hover:shadow-[0_0_12px_rgba(56,189,248,0.2)]"
           title="Elythra Studio Home"
         >
           <ElythraLogo size={20} />
@@ -83,30 +83,30 @@ export const ActivityBar: React.FC = () => {
             <div key={item.id} className="relative w-full flex items-center justify-center group">
               {/* Left active indicator pill */}
               {isActive && (
-                <div className="absolute left-0 top-1 bottom-1 w-[2.5px] bg-sky-400 rounded-r" />
+                <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-gradient-to-b from-sky-400 to-blue-500 rounded-r shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
               )}
 
               <button
                 onClick={() => handleTabClick(item.id)}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all relative ${
                   isActive
-                    ? 'text-white bg-[#1a1a1a]'
-                    : 'text-[#888888] hover:text-[#e5e5e5] hover:bg-[#161616]'
+                    ? 'text-white bg-[#191d28] border border-sky-500/25 shadow-md shadow-sky-950/20'
+                    : 'text-[#888888] hover:text-[#f0f2f5] hover:bg-[#151822]'
                 }`}
                 title={item.label}
               >
-                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-sky-300' : ''} />
 
                 {/* Git modified badge */}
                 {typeof item.badge === 'number' && item.badge > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 px-1 min-w-[15px] h-[15px] bg-sky-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 px-1 min-w-[15px] h-[15px] bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-sm">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
               </button>
 
               {/* Tooltip on hover */}
-              <div className="absolute left-12 px-2 py-1 bg-[#1a1a1a] border border-[#2a2a2a] text-[11px] text-[#e5e5e5] rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              <div className="absolute left-12 px-2.5 py-1 bg-[#12151d] border border-[#262c3e] text-[11px] text-[#e2e8f0] rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
                 {item.label}
               </div>
             </div>
@@ -118,20 +118,20 @@ export const ActivityBar: React.FC = () => {
       <div className="w-full flex flex-col items-center gap-1.5">
         <div className="relative w-full flex items-center justify-center group">
           {sidebarTab === 'history' && isSidebarOpen && (
-            <div className="absolute left-0 top-1 bottom-1 w-[2.5px] bg-sky-400 rounded-r" />
+            <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-gradient-to-b from-sky-400 to-blue-500 rounded-r shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
           )}
           <button
             onClick={() => handleTabClick('history')}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
               sidebarTab === 'history' && isSidebarOpen
-                ? 'text-white bg-[#1a1a1a]'
-                : 'text-[#888888] hover:text-[#e5e5e5] hover:bg-[#161616]'
+                ? 'text-white bg-[#191d28] border border-sky-500/25 shadow-md shadow-sky-950/20'
+                : 'text-[#888888] hover:text-[#f0f2f5] hover:bg-[#151822]'
             }`}
             title="Conversation Archive"
           >
-            <History size={18} />
+            <History size={18} className={sidebarTab === 'history' && isSidebarOpen ? 'text-sky-300' : ''} />
           </button>
-          <div className="absolute left-12 px-2 py-1 bg-[#1a1a1a] border border-[#2a2a2a] text-[11px] text-[#e5e5e5] rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+          <div className="absolute left-12 px-2.5 py-1 bg-[#12151d] border border-[#262c3e] text-[11px] text-[#e2e8f0] rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
             History
           </div>
         </div>
@@ -139,12 +139,12 @@ export const ActivityBar: React.FC = () => {
         <div className="relative w-full flex items-center justify-center group">
           <button
             onClick={() => setActiveModal('settings')}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-[#888888] hover:text-[#e5e5e5] hover:bg-[#161616] transition-all"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-[#888888] hover:text-[#f0f2f5] hover:bg-[#151822] transition-all"
             title="Settings (BYOK, Models & Editor)"
           >
             <Settings size={18} />
           </button>
-          <div className="absolute left-12 px-2 py-1 bg-[#1a1a1a] border border-[#2a2a2a] text-[11px] text-[#e5e5e5] rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+          <div className="absolute left-12 px-2.5 py-1 bg-[#12151d] border border-[#262c3e] text-[11px] text-[#e2e8f0] rounded-lg shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
             Settings
           </div>
         </div>
