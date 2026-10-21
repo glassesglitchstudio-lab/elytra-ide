@@ -32,7 +32,7 @@ interface ModelItem {
   name: string;
   provider: string;
   tag: string;
-  category: 'free' | 'core' | 'pro';
+  category: 'free' | 'core' | 'pro' | 'zen';
 }
 
 const AVAILABLE_MODELS: ModelItem[] = [
@@ -66,7 +66,37 @@ const AVAILABLE_MODELS: ModelItem[] = [
     category: 'free',
   },
 
-  // 2. Gülmez & Çetiner Çift Beyin Modeli
+  // 2. OpenCode Zen Modelleri (Free & Fast AI Gateway)
+  {
+    id: 'nemotron-3-super-free',
+    name: 'Nemotron 3 Super Free (Zen)',
+    provider: 'OpenCode Zen',
+    tag: 'Zen Free',
+    category: 'zen',
+  },
+  {
+    id: 'minimax-m2.5-free',
+    name: 'MiniMax M2.5 Free (Zen)',
+    provider: 'OpenCode Zen',
+    tag: 'Zen Chat',
+    category: 'zen',
+  },
+  {
+    id: 'big-pickle',
+    name: 'Big Pickle (Zen)',
+    provider: 'OpenCode Zen',
+    tag: 'Zen Mantık',
+    category: 'zen',
+  },
+  {
+    id: 'qwen3.5-plus',
+    name: 'Qwen 3.5 Plus (Zen)',
+    provider: 'OpenCode Zen',
+    tag: 'Zen Pro',
+    category: 'zen',
+  },
+
+  // 3. Gülmez & Çetiner Çift Beyin / Custom Endpoint
   {
     id: 'elythra-01-pro',
     name: '0.1-Pro (27B Çift Beyin)',
@@ -74,8 +104,15 @@ const AVAILABLE_MODELS: ModelItem[] = [
     tag: 'Studio Core',
     category: 'core',
   },
+  {
+    id: 'custom-endpoint-model',
+    name: 'Custom Endpoint Model',
+    provider: 'Custom Endpoint',
+    tag: 'Custom / vLLM',
+    category: 'core',
+  },
 
-  // 3. Pro / BYOK Modeller (Kredili Hesap veya Kendi API Key'iniz)
+  // 4. Pro / BYOK Modeller (Kredili Hesap veya Kendi API Key'iniz)
   {
     id: 'anthropic/claude-3.5-sonnet',
     name: 'Claude 3.5 Sonnet',
@@ -194,10 +231,13 @@ export const HomeScreen: React.FC = () => {
   });
 
   const isModelSupported = (m: ModelItem) => {
+    if (m.category === 'zen' || m.provider === 'OpenCode Zen') {
+      return !!(apiKeys.opencodeZen?.trim() || (apiKeys.customEndpoint && apiKeys.customEndpoint.includes('opencode.ai')));
+    }
     if (m.category === 'free') {
       return !!apiKeys.openrouter?.trim();
     }
-    if (m.category === 'core') {
+    if (m.category === 'core' || m.provider === 'Custom Endpoint') {
       return !!apiKeys.customEndpoint?.trim();
     }
     if (m.category === 'pro') {
@@ -212,10 +252,11 @@ export const HomeScreen: React.FC = () => {
     return false;
   };
 
+  const zenModels = AVAILABLE_MODELS.filter((m) => m.category === 'zen' && isModelSupported(m));
   const freeModels = AVAILABLE_MODELS.filter((m) => m.category === 'free' && isModelSupported(m));
   const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
   const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
-  const allAvailableModels = [...freeModels, ...coreModels, ...proModels];
+  const allAvailableModels = [...zenModels, ...freeModels, ...coreModels, ...proModels];
 
   useEffect(() => {
     if (hasAnyProvider && allAvailableModels.length > 0) {
@@ -606,6 +647,36 @@ export const HomeScreen: React.FC = () => {
                     </div>
                   ) : (
                     <>
+                      {/* Category 0: OpenCode Zen Gateway */}
+                      {zenModels.length > 0 && (
+                        <div>
+                          <div className="px-3 py-1.5 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between bg-[#0e181e]">
+                            <span>⚡ OpenCode Zen Modelleri</span>
+                            <span className="text-[9px] bg-cyan-950/70 text-cyan-400 border border-cyan-800/40 px-1 rounded">Ücretsiz Gateway</span>
+                          </div>
+                          {zenModels.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedModel(m.name);
+                                setShowModelDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#1a2630] transition-colors flex items-center justify-between ${
+                                selectedModel === m.name ? 'bg-[#1a2630] text-white font-medium' : 'text-[#cccccc]'
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10242a] text-cyan-300 border border-cyan-800/30">
+                                {m.tag}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Category 1: Free Tier */}
                       {freeModels.length > 0 && (
                         <div>
@@ -640,7 +711,7 @@ export const HomeScreen: React.FC = () => {
                       {coreModels.length > 0 && (
                         <div>
                           <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                            Özel Stüdyo Modeli
+                            Özel Stüdyo & Custom Endpoint
                           </div>
                           {coreModels.map((m) => (
                             <button

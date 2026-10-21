@@ -73,6 +73,7 @@ export interface ElythraSettings {
     customEndpoint?: string;
     customKey?: string;
     customModel?: string;
+    opencodeZen?: string;
   };
   defaultModel: string;
   thinkingLevel: ThinkingLevel;

@@ -38,6 +38,13 @@ export const SettingsModal: React.FC = () => {
       link: 'https://openrouter.ai/keys',
     },
     {
+      id: 'opencodeZen',
+      label: 'OpenCode Zen Gateway (Free & Fast LLM)',
+      desc: 'Free models: nemotron-3-super-free, minimax-m2.5-free, big-pickle, qwen3.5-plus',
+      placeholder: 'Bearer token or zen key (optional for free tier)',
+      link: 'https://opencode.ai/zen',
+    },
+    {
       id: 'gemini',
       label: 'Google Gemini API',
       desc: 'Gemini 3.8 Flash, Gemini 2.5 Flash / Pro',
@@ -186,10 +193,140 @@ export const SettingsModal: React.FC = () => {
                   );
                 })}
 
-                <div className="pt-2 border-t border-[#1f1f1f] space-y-2">
-                  <span className="text-[12px] font-medium text-[#e5e5e5]">Local LLM / Custom Endpoint</span>
+                <div className="pt-2 border-t border-[#1f1f1f] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold text-[#e5e5e5] flex items-center gap-1.5">
+                      <Cpu size={14} className="text-cyan-400" />
+                      Local LLM & Custom Endpoints
+                    </span>
+                    <span className="text-[10px] text-[#8a8a8a]">OpenAI-Compatible & vLLM</span>
+                  </div>
+
+                  {/* Preset Quick-Fill Buttons */}
+                  <div className="space-y-1.5 p-2.5 bg-[#101216] border border-[#232733] rounded-lg">
+                    <label className="block text-[#a0aab8] text-[11px] font-medium">Hızlı Şablonlar (Tek Tıkla Doldur):</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: {
+                              ...formData.apiKeys,
+                              customEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
+                              customModel: 'nemotron-3-super-free',
+                            },
+                          })
+                        }
+                        className="px-2.5 py-1 bg-[#16202a] hover:bg-[#1f2e3d] border border-cyan-800/40 hover:border-cyan-500/60 rounded text-[11px] text-cyan-300 transition-all flex items-center gap-1 font-medium"
+                      >
+                        ⚡ OpenCode Zen (Free)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: {
+                              ...formData.apiKeys,
+                              customEndpoint: 'http://localhost:1234/v1/chat/completions',
+                              customModel: 'default',
+                            },
+                          })
+                        }
+                        className="px-2.5 py-1 bg-[#1a1c22] hover:bg-[#262a34] border border-[#2f3545] hover:border-[#47516b] rounded text-[11px] text-[#d1d5db] transition-all flex items-center gap-1"
+                      >
+                        💻 LM Studio (Local :1234)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: {
+                              ...formData.apiKeys,
+                              ollamaUrl: 'http://localhost:11434',
+                              customEndpoint: 'http://localhost:11434/v1/chat/completions',
+                              customModel: 'qwen2.5-coder:7b',
+                            },
+                          })
+                        }
+                        className="px-2.5 py-1 bg-[#1a1c22] hover:bg-[#262a34] border border-[#2f3545] hover:border-[#47516b] rounded text-[11px] text-[#d1d5db] transition-all flex items-center gap-1"
+                      >
+                        🦙 Ollama (Local :11434)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: {
+                              ...formData.apiKeys,
+                              customModel: 'gulmez-27b',
+                            },
+                          })
+                        }
+                        className="px-2.5 py-1 bg-[#201826] hover:bg-[#2c2035] border border-purple-800/40 hover:border-purple-500/60 rounded text-[11px] text-purple-300 transition-all flex items-center gap-1"
+                      >
+                        🧠 Kaggle 0.1-Pro (27B)
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-[#8a8a8a] text-[11px] mb-1">Ollama URL (Local)</label>
+                    <label className="block text-[#8a8a8a] text-[11px] mb-1">Custom OpenAI-Compatible Endpoint URL</label>
+                    <input
+                      type="text"
+                      value={formData.apiKeys.customEndpoint || ''}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          apiKeys: { ...formData.apiKeys, customEndpoint: e.target.value },
+                        })
+                      }
+                      placeholder="https://opencode.ai/zen/v1/chat/completions veya https://...trycloudflare.com/v1"
+                      className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
+                    />
+                    <p className="text-[10px] text-[#666666] mt-0.5">
+                      vLLM, LM Studio, Zen veya Kaggle tünelinizi bağlayın. Otomatik /chat/completions formatlar.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[#8a8a8a] text-[11px] mb-1">Custom Bearer Token / Key (Opsiyonel)</label>
+                      <input
+                        type="password"
+                        value={formData.apiKeys.customKey || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: { ...formData.apiKeys, customKey: e.target.value },
+                          })
+                        }
+                        placeholder="Bearer token veya key"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[#8a8a8a] text-[11px] mb-1">Target Model ID (Opsiyonel)</label>
+                      <input
+                        type="text"
+                        value={formData.apiKeys.customModel || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            apiKeys: { ...formData.apiKeys, customModel: e.target.value },
+                          })
+                        }
+                        placeholder="nemotron-3-super-free, gulmez-27b vb."
+                        className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#8a8a8a] text-[11px] mb-1">Ollama Native URL (Local)</label>
                     <input
                       type="text"
                       value={formData.apiKeys.ollamaUrl || ''}
@@ -200,23 +337,7 @@ export const SettingsModal: React.FC = () => {
                         })
                       }
                       placeholder="http://localhost:11434"
-                      className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[#8a8a8a] text-[11px] mb-1">Custom OpenAI-Compatible Endpoint</label>
-                    <input
-                      type="text"
-                      value={formData.apiKeys.customEndpoint || ''}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          apiKeys: { ...formData.apiKeys, customEndpoint: e.target.value },
-                        })
-                      }
-                      placeholder="https://api.your-vllm-host.com/v1/chat/completions"
-                      className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none"
+                      className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
                     />
                   </div>
                 </div>
@@ -228,16 +349,17 @@ export const SettingsModal: React.FC = () => {
                 {(() => {
                   const keys = formData.apiKeys || {};
                   const hasOpenRouter = !!keys.openrouter?.trim();
+                  const hasZen = !!(keys.opencodeZen?.trim() || keys.customEndpoint?.includes('opencode.ai'));
                   const hasCustom = !!keys.customEndpoint?.trim();
                   const hasDirectPro = !!(keys.anthropic?.trim() || keys.openai?.trim() || keys.deepseek?.trim() || keys.groq?.trim() || keys.gemini?.trim());
-                  const hasAny = hasOpenRouter || hasCustom || hasDirectPro || !!keys.ollamaUrl?.trim();
+                  const hasAny = hasOpenRouter || hasZen || hasCustom || hasDirectPro || !!keys.ollamaUrl?.trim();
 
                   if (!hasAny) {
                     return (
                       <div className="p-4 bg-[#1b1712] border border-amber-500/20 rounded-btn text-center space-y-2">
                         <div className="text-[12px] font-medium text-amber-400">⚠️ Henüz Bir Sağlayıcı Bağlanmadı</div>
                         <p className="text-[11px] text-[#8a8a8a]">
-                          Varsayılan model seçebilmek için lütfen sol menüdeki <b>API Keys</b> sekmesinden bir API anahtarı (OpenRouter, Gemini vb.) veya özel endpoint bağlayın.
+                          Varsayılan model seçebilmek için lütfen sol menüdeki <b>API Keys</b> sekmesinden bir API anahtarı (OpenCode Zen, OpenRouter, Gemini vb.) veya özel endpoint bağlayın.
                         </p>
                         <button
                           type="button"
@@ -258,6 +380,14 @@ export const SettingsModal: React.FC = () => {
                         onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
                         className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-2 text-[#e5e5e5] focus:outline-none text-[13px]"
                       >
+                        {hasZen && (
+                          <optgroup label="⚡ OpenCode Zen Modelleri (Free Gateway)">
+                            <option value="Nemotron 3 Super Free (Zen)">Nemotron 3 Super Free (Zen)</option>
+                            <option value="MiniMax M2.5 Free (Zen)">MiniMax M2.5 Free (Zen)</option>
+                            <option value="Big Pickle (Zen)">Big Pickle (Zen)</option>
+                            <option value="Qwen 3.5 Plus (Zen)">Qwen 3.5 Plus (Zen)</option>
+                          </optgroup>
+                        )}
                         {hasOpenRouter && (
                           <optgroup label="Ücretsiz Modeller (OpenRouter Free)">
                             <option value="Nemotron 3.5 Lightning">Nemotron 3.5 Lightning (Ultra Hızlı)</option>
@@ -267,8 +397,9 @@ export const SettingsModal: React.FC = () => {
                           </optgroup>
                         )}
                         {hasCustom && (
-                          <optgroup label="Özel Stüdyo Modeli">
+                          <optgroup label="Özel Stüdyo & Custom Endpoint">
                             <option value="0.1-Pro (27B Çift Beyin)">0.1-Pro (27B Çift Beyin)</option>
+                            <option value="Custom Endpoint Model">Custom Endpoint Model</option>
                           </optgroup>
                         )}
                         {(hasOpenRouter || hasDirectPro) && (

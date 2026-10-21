@@ -555,6 +555,11 @@ function setupIpcHandlers() {
       'GPT-4o': 'openai/gpt-4o',
       'Gemini 2.5 Flash': 'google/gemini-2.5-flash',
       'Gemini 2.0 Flash': 'google/gemini-2.5-flash',
+      'Nemotron 3 Super Free (Zen)': 'nemotron-3-super-free',
+      'MiniMax M2.5 Free (Zen)': 'minimax-m2.5-free',
+      'Big Pickle (Zen)': 'big-pickle',
+      'Qwen 3.5 Plus (Zen)': 'qwen3.5-plus',
+      'Custom Endpoint Model': 'custom-endpoint-model',
       'gemini-3.8-flash': 'nvidia/nemotron-3.5-lightning:free',
     };
 
@@ -609,11 +614,51 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.customEndpoint && (model.includes('0.1-Pro') || targetModel === 'gulmez-27b' || keys.customModel)) {
-      endpoint = keys.customEndpoint;
-      if (keys.customKey) headers['Authorization'] = `Bearer ${keys.customKey}`;
+    } else if (
+      (keys.opencodeZen || (keys.customEndpoint && keys.customEndpoint.includes('opencode.ai'))) &&
+      (model.includes('(Zen)') || targetModel.includes('zen') || targetModel === 'nemotron-3-super-free' || targetModel === 'minimax-m2.5-free' || targetModel === 'big-pickle' || targetModel === 'qwen3.5-plus' || keys.opencodeZen)
+    ) {
+      // 2. OpenCode Zen AI Gateway
+      let zenUrl = (keys.customEndpoint && keys.customEndpoint.includes('opencode.ai'))
+        ? keys.customEndpoint.trim()
+        : 'https://opencode.ai/zen/v1/chat/completions';
+      if (!zenUrl.endsWith('/chat/completions') && !zenUrl.endsWith('/responses')) {
+        zenUrl = zenUrl.replace(/\/$/, '') + '/chat/completions';
+      }
+      endpoint = zenUrl;
+      const zenKey = keys.opencodeZen || keys.customKey;
+      if (zenKey) headers['Authorization'] = `Bearer ${zenKey}`;
+
+      let zenModel = targetModel;
+      if (zenModel.includes('nemotron')) zenModel = 'nemotron-3-super-free';
+      else if (zenModel.includes('minimax')) zenModel = 'minimax-m2.5-free';
+      else if (zenModel.includes('pickle')) zenModel = 'big-pickle';
+      else if (zenModel.includes('qwen')) zenModel = 'qwen3.5-plus';
+      else if (keys.customModel) zenModel = keys.customModel;
+
       body = {
-        model: keys.customModel || 'gulmez-27b',
+        model: zenModel,
+        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        stream: true,
+      };
+    } else if (keys.customEndpoint) {
+      // 3. Universal Custom OpenAI-Compatible Endpoint (vLLM, LM Studio, Ollama, Kaggle b98 Tunnel)
+      let customUrl = keys.customEndpoint.trim();
+      if (!customUrl.endsWith('/chat/completions') && !customUrl.endsWith('/responses') && !customUrl.endsWith('/completions')) {
+        customUrl = customUrl.replace(/\/$/, '') + '/chat/completions';
+      }
+      endpoint = customUrl;
+      if (keys.customKey) headers['Authorization'] = `Bearer ${keys.customKey}`;
+
+      let customTargetModel = keys.customModel?.trim() || targetModel;
+      if (customTargetModel.includes('0.1-Pro') || customTargetModel === 'gulmez-27b') {
+        customTargetModel = 'gulmez-27b';
+      } else if (customTargetModel === 'custom-endpoint-model') {
+        customTargetModel = keys.customModel?.trim() || 'default';
+      }
+
+      body = {
+        model: customTargetModel,
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
