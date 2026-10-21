@@ -575,6 +575,46 @@ function setupIpcHandlers() {
     }
   });
 
+  // GitHub Copilot Session Token Cache & Auto-Exchanger
+  let copilotSessionTokenCache: { token: string; expires_at: number } | null = null;
+
+  async function getCopilotSessionToken(githubToken: string): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    if (copilotSessionTokenCache && copilotSessionTokenCache.expires_at > now + 60) {
+      return copilotSessionTokenCache.token;
+    }
+    // If user already pasted a raw Copilot session token (contains tid= or ;exp=)
+    if (githubToken.startsWith('tid=') || githubToken.includes(';exp=')) {
+      return githubToken;
+    }
+    // Exchange ghu_ / gho_ token via GitHub Copilot internal endpoint
+    try {
+      const res = await fetch('https://api.github.com/copilot_internal/v2/token', {
+        method: 'GET',
+        headers: {
+          Authorization: `token ${githubToken.trim()}`,
+          Accept: 'application/json',
+          'Editor-Version': 'vscode/1.90.0',
+          'Editor-Plugin-Version': 'copilot-chat/0.17.0',
+          'User-Agent': 'GitHubCopilotChat/0.17.0',
+        },
+      });
+      if (res.ok) {
+        const data: any = await res.json();
+        if (data.token) {
+          copilotSessionTokenCache = {
+            token: data.token,
+            expires_at: data.expires_at || (now + 1800),
+          };
+          return data.token;
+        }
+      }
+    } catch (e) {
+      console.error('Copilot session token exchange error:', e);
+    }
+    return githubToken.trim();
+  }
+
   // AI Chat Request Handler (Full BYOK + Smart Local Autonomous Reasoning Engine)
   ipcMain.handle('ai:sendChat', async (event, params) => {
     const settings = readJsonFile(SETTINGS_FILE, defaultSettings);
@@ -595,6 +635,37 @@ function setupIpcHandlers() {
         }
       } catch {}
     };
+
+    // 1. Sanitize messages for multi-turn conversations & model changes
+    // Prevents 400 Bad Request on provider switches (enforces alternating roles, filters error cards, removes empty msgs)
+    const sanitizedMessages: { role: string; content: string }[] = [];
+    if (Array.isArray(messages)) {
+      for (const m of messages) {
+        if (!m || typeof m.content !== 'string' || !m.content.trim()) continue;
+        // Exclude system error diagnostic cards from context history
+        if (
+          m.content.startsWith('[Baglanti Hatasi]:') ||
+          m.content.startsWith('API / Baglanti Hatasi:') ||
+          m.content.startsWith('HTTP ')
+        ) {
+          continue;
+        }
+        const role = m.role === 'assistant' ? 'assistant' : 'user';
+        if (sanitizedMessages.length > 0 && sanitizedMessages[sanitizedMessages.length - 1].role === role) {
+          sanitizedMessages[sanitizedMessages.length - 1].content += `\n\n${m.content}`;
+        } else {
+          sanitizedMessages.push({ role, content: m.content });
+        }
+      }
+    }
+
+    // Ensure conversation starts with user role
+    while (sanitizedMessages.length > 0 && sanitizedMessages[0].role !== 'user') {
+      sanitizedMessages.shift();
+    }
+    if (sanitizedMessages.length === 0) {
+      sanitizedMessages.push({ role: 'user', content: lastUserMessage || 'Merhaba' });
+    }
 
     let endpoint = '';
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -639,148 +710,45 @@ function setupIpcHandlers() {
     };
 
     const targetModel = MODEL_ID_MAP[model] || model;
+    const sysPrompt = settings.systemInstructions || 'You are Elythra Code, an expert autonomous AI software engineer.';
 
-    // 1. Direct BYOK Providers if key matches selected model
-    if (keys.gemini && (model.toLowerCase().includes('gemini') || targetModel.includes('gemini')) && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
-      const geminiModel = 'gemini-2.0-flash';
-      endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${keys.gemini}&alt=sse`;
-      body = {
-        contents: messages.map((m: any) => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }],
-        })),
-        generationConfig: {
-          temperature: thinkingLevel === 'High' ? 0.7 : 0.2,
-        },
-      };
-    } else if (keys.anthropic && (model.toLowerCase().includes('claude') || targetModel.includes('claude'))) {
-      isAnthropic = true;
-      endpoint = 'https://api.anthropic.com/v1/messages';
-      headers['x-api-key'] = keys.anthropic;
-      headers['anthropic-version'] = '2023-06-01';
-      body = {
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
-        system: settings.systemInstructions,
-        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
-        stream: true,
-      };
-    } else if (keys.deepseek && (model.toLowerCase().includes('deepseek') || targetModel.includes('deepseek'))) {
-      endpoint = 'https://api.deepseek.com/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.deepseek}`;
-      body = {
-        model: model.includes('r1') ? 'deepseek-reasoner' : 'deepseek-chat',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.groq && (model.toLowerCase().includes('llama') || targetModel.includes('llama'))) {
-      endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.groq}`;
-      body = {
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.openai && (model.toLowerCase().includes('gpt') || targetModel.includes('gpt') || targetModel.includes('o1') || targetModel.includes('o3'))) {
-      endpoint = 'https://api.openai.com/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.openai}`;
-      body = {
-        model: model.includes('gpt') || model.includes('o1') || model.includes('o3') ? model : 'gpt-4o',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.githubCopilot && (model.toLowerCase().includes('copilot') || targetModel.startsWith('copilot/'))) {
-      // GitHub Copilot OAuth / Token Chat Gateway
+    // 2. Deterministic Provider Routing
+    if (model.startsWith('Copilot ') || targetModel.startsWith('copilot/')) {
+      // 2.1 GitHub Copilot (OAuth / Token Gateway)
+      if (!keys.githubCopilot) {
+        const errorMsg = 'GitHub Copilot OAuth token bulunamadı. Lütfen Ayarlar > API Keys bölümünden Copilot ile bağlanın.';
+        sendChunk({ error: errorMsg });
+        sendChunk({ done: true });
+        return null;
+      }
+      const copilotSessionToken = await getCopilotSessionToken(keys.githubCopilot);
       endpoint = 'https://api.githubcopilot.com/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.githubCopilot}`;
+      headers['Authorization'] = `Bearer ${copilotSessionToken}`;
       headers['Editor-Version'] = 'vscode/1.90.0';
       headers['Editor-Plugin-Version'] = 'copilot-chat/0.17.0';
       headers['Copilot-Integration-Id'] = 'vscode-chat';
+      headers['Openai-Intent'] = 'conversation-edits';
+
       let copilotModel = targetModel.replace('copilot/', '');
-      if (copilotModel === 'copilot' || !copilotModel) copilotModel = 'claude-3.5-sonnet';
+      if (copilotModel === 'copilot' || !copilotModel || copilotModel.includes('3.5-sonnet')) {
+        copilotModel = 'claude-3.5-sonnet';
+      } else if (copilotModel.includes('gpt-4o')) {
+        copilotModel = 'gpt-4o';
+      }
       body = {
         model: copilotModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.cerebras && (model.toLowerCase().includes('cerebras') || targetModel.includes('cerebras'))) {
-      // Cerebras Ultra-Fast LPU
-      endpoint = 'https://api.cerebras.ai/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.cerebras}`;
-      body = {
-        model: 'llama3.3-70b',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.sambanova && (model.toLowerCase().includes('sambanova') || targetModel.includes('sambanova'))) {
-      // SambaNova 100% Free Tier
-      endpoint = 'https://api.sambanova.ai/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.sambanova}`;
-      let snModel = targetModel.includes('qwen') ? 'Qwen2.5-Coder-32B-Instruct' : 'Meta-Llama-3.3-70B-Instruct';
-      body = {
-        model: snModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.mistral && (model.toLowerCase().includes('mistral') || model.toLowerCase().includes('codestral') || targetModel.includes('mistral') || targetModel.includes('codestral'))) {
-      // Mistral AI / Codestral
-      endpoint = 'https://api.mistral.ai/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.mistral}`;
-      body = {
-        model: model.toLowerCase().includes('large') ? 'mistral-large-latest' : 'codestral-latest',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.xai && (model.toLowerCase().includes('grok') || targetModel.includes('xai') || targetModel.includes('grok'))) {
-      // xAI Grok
-      endpoint = 'https://api.x.ai/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.xai}`;
-      body = {
-        model: 'grok-2-latest',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.together && (model.toLowerCase().includes('together') || targetModel.includes('together'))) {
-      // Together AI
-      endpoint = 'https://api.together.xyz/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.together}`;
-      body = {
-        model: 'Qwen/Qwen2.5-Coder-32B-Instruct',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.fireworks && (model.toLowerCase().includes('fireworks') || targetModel.includes('fireworks'))) {
-      // Fireworks AI
-      endpoint = 'https://api.fireworks.ai/inference/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.fireworks}`;
-      body = {
-        model: 'accounts/fireworks/models/qwen2p5-coder-32b-instruct',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.perplexity && (model.toLowerCase().includes('perplexity') || model.toLowerCase().includes('sonar') || targetModel.includes('perplexity'))) {
-      // Perplexity Sonar
-      endpoint = 'https://api.perplexity.ai/chat/completions';
-      headers['Authorization'] = `Bearer ${keys.perplexity}`;
-      body = {
-        model: 'sonar-reasoning',
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
-        stream: true,
-      };
-    } else if (keys.cohere && (model.toLowerCase().includes('cohere') || targetModel.includes('cohere'))) {
-      // Cohere Command R+
-      endpoint = 'https://api.cohere.com/v2/chat';
-      headers['Authorization'] = `Bearer ${keys.cohere}`;
-      body = {
-        model: 'command-r-plus-08-2024',
-        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
         stream: true,
       };
     } else if (
-      (keys.opencodeZen || (keys.customEndpoint && keys.customEndpoint.includes('opencode.ai'))) &&
-      (model.includes('(Zen)') || targetModel.includes('zen') || targetModel === 'nemotron-3-super-free' || targetModel === 'minimax-m2.5-free' || targetModel === 'big-pickle' || targetModel === 'qwen3.5-plus' || keys.opencodeZen)
+      model.includes('(Zen)') ||
+      targetModel.includes('zen') ||
+      targetModel === 'nemotron-3-super-free' ||
+      targetModel === 'minimax-m2.5-free' ||
+      targetModel === 'big-pickle' ||
+      targetModel === 'qwen3.5-plus'
     ) {
-      // 2. OpenCode Zen AI Gateway
+      // 2.2 OpenCode Zen Gateway
       let zenUrl = (keys.customEndpoint && keys.customEndpoint.includes('opencode.ai'))
         ? keys.customEndpoint.trim()
         : 'https://opencode.ai/zen/v1/chat/completions';
@@ -796,44 +764,275 @@ function setupIpcHandlers() {
       else if (zenModel.includes('minimax')) zenModel = 'minimax-m2.5-free';
       else if (zenModel.includes('pickle')) zenModel = 'big-pickle';
       else if (zenModel.includes('qwen')) zenModel = 'qwen3.5-plus';
-      else if (keys.customModel) zenModel = keys.customModel;
 
       body = {
         model: zenModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
         stream: true,
       };
+    } else if (model.includes('Cerebras') || targetModel.startsWith('cerebras/')) {
+      // 2.3 Cerebras Cloud
+      endpoint = 'https://api.cerebras.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.cerebras}`;
+      body = {
+        model: 'llama3.3-70b',
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+        stream: true,
+      };
+    } else if (model.includes('SambaNova') || targetModel.startsWith('sambanova/')) {
+      // 2.4 SambaNova Cloud
+      endpoint = 'https://api.sambanova.ai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.sambanova}`;
+      let snModel = targetModel.includes('qwen') || model.includes('Qwen') ? 'Qwen2.5-Coder-32B-Instruct' : 'Meta-Llama-3.3-70B-Instruct';
+      body = {
+        model: snModel,
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+        stream: true,
+      };
+    } else if (model.includes('Codestral') || model.includes('Mistral') || targetModel.startsWith('mistral/')) {
+      // 2.5 Mistral AI
+      if (keys.mistral) {
+        endpoint = 'https://api.mistral.ai/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.mistral}`;
+        body = {
+          model: model.toLowerCase().includes('large') ? 'mistral-large-latest' : 'codestral-latest',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: 'mistralai/codestral-2501',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('Grok') || targetModel.startsWith('xai/')) {
+      // 2.6 xAI Grok
+      if (keys.xai) {
+        endpoint = 'https://api.x.ai/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.xai}`;
+        body = {
+          model: 'grok-2-latest',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: 'x-ai/grok-2-1212',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('Perplexity') || targetModel.startsWith('perplexity/')) {
+      // 2.7 Perplexity
+      endpoint = 'https://api.perplexity.ai/chat/completions';
+      headers['Authorization'] = `Bearer ${keys.perplexity}`;
+      body = {
+        model: 'sonar-reasoning',
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+        stream: true,
+      };
+    } else if (model.includes('Cohere') || targetModel.startsWith('cohere/')) {
+      // 2.8 Cohere
+      endpoint = 'https://api.cohere.com/v2/chat';
+      headers['Authorization'] = `Bearer ${keys.cohere}`;
+      body = {
+        model: 'command-r-plus-08-2024',
+        messages: sanitizedMessages.map((m: any) => ({ role: m.role, content: m.content })),
+        stream: true,
+      };
+    } else if (model.includes('Together') || targetModel.startsWith('together/')) {
+      // 2.9 Together AI
+      if (keys.together) {
+        endpoint = 'https://api.together.xyz/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.together}`;
+        body = {
+          model: 'Qwen/Qwen2.5-Coder-32B-Instruct',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: 'qwen/qwen-2.5-coder-32b-instruct',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('Claude') || targetModel.startsWith('anthropic/')) {
+      // 2.10 Anthropic Claude (Direct or OpenRouter fallback)
+      const claudeVersion = model.includes('3.7') ? 'claude-3-7-sonnet-20250219' : 'claude-3-5-sonnet-20241022';
+      if (keys.anthropic) {
+        isAnthropic = true;
+        endpoint = 'https://api.anthropic.com/v1/messages';
+        headers['x-api-key'] = keys.anthropic;
+        headers['anthropic-version'] = '2023-06-01';
+        body = {
+          model: claudeVersion,
+          max_tokens: 4096,
+          system: sysPrompt,
+          messages: sanitizedMessages.map((m: any) => ({ role: m.role, content: m.content })),
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: model.includes('3.7') ? 'anthropic/claude-3.7-sonnet' : 'anthropic/claude-3.5-sonnet',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('DeepSeek') || targetModel.startsWith('deepseek/')) {
+      // 2.11 DeepSeek (Direct or OpenRouter fallback)
+      const isR1 = model.toLowerCase().includes('r1') || targetModel.includes('r1');
+      if (keys.deepseek) {
+        endpoint = 'https://api.deepseek.com/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.deepseek}`;
+        body = {
+          model: isR1 ? 'deepseek-reasoner' : 'deepseek-chat',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: isR1 ? 'deepseek/deepseek-r1' : 'deepseek/deepseek-chat',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('GPT') || model.includes('o1') || model.includes('o3') || targetModel.startsWith('openai/')) {
+      // 2.12 OpenAI (Direct or OpenRouter fallback)
+      let oaiModel = 'gpt-4o';
+      if (model.includes('o3-mini') || targetModel.includes('o3-mini')) oaiModel = 'o3-mini';
+      else if (model.includes('o1') || targetModel.includes('o1')) oaiModel = 'o1';
+      else if (model.includes('Mini') || targetModel.includes('mini')) oaiModel = 'gpt-4o-mini';
+
+      if (keys.openai) {
+        endpoint = 'https://api.openai.com/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openai}`;
+        body = {
+          model: oaiModel,
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: `openai/${oaiModel}`,
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('Gemini') || targetModel.startsWith('google/')) {
+      // 2.13 Google Gemini (Direct or OpenRouter fallback)
+      if (keys.gemini && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
+        const geminiModel = 'gemini-2.0-flash';
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${keys.gemini}&alt=sse`;
+        body = {
+          contents: sanitizedMessages.map((m: any) => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.content }],
+          })),
+          generationConfig: {
+            temperature: thinkingLevel === 'High' ? 0.7 : 0.2,
+          },
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: 'google/gemini-2.0-flash-001',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
+    } else if (model.includes('Llama') || targetModel.includes('llama')) {
+      // 2.14 Llama 3.3 70B (Groq -> Cerebras -> SambaNova -> OpenRouter)
+      if (keys.groq) {
+        endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.groq}`;
+        body = {
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.cerebras) {
+        endpoint = 'https://api.cerebras.ai/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.cerebras}`;
+        body = {
+          model: 'llama3.3-70b',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.sambanova) {
+        endpoint = 'https://api.sambanova.ai/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.sambanova}`;
+        body = {
+          model: 'Meta-Llama-3.3-70B-Instruct',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      } else if (keys.openrouter) {
+        endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+        headers['Authorization'] = `Bearer ${keys.openrouter}`;
+        headers['HTTP-Referer'] = 'https://elytra.code';
+        headers['X-Title'] = 'Elytra Code';
+        body = {
+          model: 'meta-llama/llama-3.3-70b-instruct',
+          messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
+          stream: true,
+        };
+      }
     } else if (keys.customEndpoint) {
-      // 3. Universal Custom OpenAI-Compatible Endpoint (vLLM, LM Studio, Ollama, Custom Server)
+      // 2.15 Custom Endpoint
       let customUrl = keys.customEndpoint.trim();
       if (!customUrl.endsWith('/chat/completions') && !customUrl.endsWith('/responses') && !customUrl.endsWith('/completions')) {
         customUrl = customUrl.replace(/\/$/, '') + '/chat/completions';
       }
       endpoint = customUrl;
       if (keys.customKey) headers['Authorization'] = `Bearer ${keys.customKey}`;
-
       let customTargetModel = keys.customModel?.trim() || (targetModel === 'custom-endpoint-model' ? 'default' : targetModel);
-
       body = {
         model: customTargetModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
         stream: true,
       };
     } else if (keys.openrouter) {
-      // 2. OpenRouter Hub (Universal BYOK Gateway)
+      // 2.16 General OpenRouter
       endpoint = 'https://openrouter.ai/api/v1/chat/completions';
       headers['Authorization'] = `Bearer ${keys.openrouter}`;
       headers['HTTP-Referer'] = 'https://elytra.code';
       headers['X-Title'] = 'Elytra Code';
-
       let orModel = targetModel;
       if (orModel === 'gemini-3.8-flash' || orModel === 'custom-endpoint-model') {
         orModel = 'nvidia/nemotron-3.5-lightning:free';
       }
-
       body = {
         model: orModel,
-        messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
+        messages: [{ role: 'system', content: sysPrompt }, ...sanitizedMessages],
         stream: true,
       };
     } else if (keys.ollamaUrl) {
@@ -841,25 +1040,24 @@ function setupIpcHandlers() {
       endpoint = `${keys.ollamaUrl.replace(/\/$/, '')}/api/chat`;
       body = {
         model: targetModel,
-        messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
+        messages: sanitizedMessages,
         stream: true,
       };
     }
 
     try {
-      // If NO API key is supplied, do NOT fake responses. Inform the user clearly.
       if (!endpoint) {
         const isTurkish = /[çğıöşüÇĞİÖŞÜ]|\b(nasıl|nedir|nerede|çalıştır|yap|kod|hata|düzelt|ekle|aç|yardım|test|neden|öğren|bak|yaz|oluştur|bu|ile|ve)\b/i.test(lastUserMessage);
         const warningMsg = isTurkish
-          ? `### Aktif Model Bağlantısı Bulunamadı\n\nElytra Code şu anda herhangi bir gerçek AI modeline veya API anahtarına bağlı değil.\n\n**Gerçek model yanıtları almak için:**\n1. Sol alttaki **Ayarlar (Dişli Çark)** butonuna tıklayın.\n2. **API Keys** sekmesinden bir sağlayıcı seçip anahtarınızı girin:\n   - **OpenCode Zen:** [opencode.ai/zen](https://opencode.ai/zen) ücretsiz hazır modeller.\n   - **Google Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) üzerinden ücretsiz anında API anahtarı alınabilir.\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Mevcut API anahtarınızı yapıştırabilirsiniz.\n   - **Özel / Yerel Model (vLLM / LM Studio):** API sunucunuzu **Custom Endpoint** alanına girebilirsiniz.\n   - **Ollama (Yerel):** \`http://localhost:11434\` adresini bağlayabilirsiniz.\n\nAnahtarınızı kaydedip tekrar mesaj gönderdiğinizde gerçek yapay zeka modeli doğrudan yanıt verecektir.`
-          : `### No Active AI Model Connected\n\nElytra Code is not currently connected to any live AI model or API key.\n\n**To get real AI responses:**\n1. Click the **Settings (Gear icon)** in the bottom left.\n2. Under **API Keys**, configure a provider:\n   - **OpenCode Zen:** [opencode.ai/zen](https://opencode.ai/zen) free models.\n   - **Google Gemini:** Free API keys available at [Google AI Studio](https://aistudio.google.com/app/apikey).\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Enter your API key.\n   - **Custom Endpoint (vLLM / LM Studio / Local):** Connect your OpenAI-compatible inference server.\n   - **Local Model / Ollama:** Connect your local Ollama (\`http://localhost:11434\`).\n\nSave your settings and submit your prompt to receive real model completions.`;
+          ? `### Aktif Model Bağlantısı Bulunamadı\n\nElytra Code şu anda **${model}** için geçerli bir API anahtarına veya servis sağlayıcıya bağlı değil.\n\n**Bağlantı Kurmak İçin:**\n1. Sol alttaki **Ayarlar (Dişli Çark)** butonuna tıklayın.\n2. **API Keys** sekmesinden ilgili sağlayıcının anahtarını girin (veya **OpenCode Zen / Copilot OAuth / OpenRouter** bağlayın).\n3. Ayarları kaydedip tekrar mesaj gönderdiğinizde model doğrudan yanıt verecektir.`
+          : `### No Active AI Model Connected\n\nElytra Code is not currently connected to an active API key or provider for **${model}**.\n\n**To connect:**\n1. Open **Settings > API Keys**.\n2. Configure your API key or OAuth connection for this provider.\n3. Save and resubmit your prompt.`;
 
         sendChunk({ chunk: warningMsg });
         sendChunk({ done: true });
         return warningMsg;
       }
 
-      // Live Provider Fetch with Detailed Error Surfacing
+      // Live Provider Fetch
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
@@ -873,11 +1071,13 @@ function setupIpcHandlers() {
           const errObj = JSON.parse(errText);
           if (errObj.error?.message) {
             errorMsg = `[Sağlayıcı Yanıtı]: ${errObj.error.message}`;
+          } else if (errObj.message) {
+            errorMsg = `[Sağlayıcı Yanıtı]: ${errObj.message}`;
           }
         } catch {}
         sendChunk({ error: errorMsg });
         sendChunk({ done: true });
-        return errorMsg;
+        return null;
       }
 
       const reader = response.body?.getReader();

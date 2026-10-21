@@ -21,6 +21,8 @@ import {
   AlertCircle,
   Settings,
   Undo2,
+  Copy,
+  Search,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -309,14 +311,14 @@ export const HomeScreen: React.FC = () => {
     if (m.category === 'zen' || m.provider === 'OpenCode Zen') {
       return !!(apiKeys.opencodeZen?.trim() || (apiKeys.customEndpoint && apiKeys.customEndpoint.includes('opencode.ai')));
     }
-    if (m.provider === 'Cerebras Cloud') {
+    if (m.provider === 'Cerebras Cloud' || m.id.startsWith('cerebras/')) {
       return !!apiKeys.cerebras?.trim();
     }
-    if (m.provider === 'SambaNova Cloud') {
+    if (m.provider === 'SambaNova Cloud' || m.id.startsWith('sambanova/')) {
       return !!apiKeys.sambanova?.trim();
     }
-    if (m.category === 'free') {
-      return !!apiKeys.openrouter?.trim() || !!apiKeys.cerebras?.trim() || !!apiKeys.sambanova?.trim();
+    if (m.provider === 'OpenRouter Free') {
+      return !!apiKeys.openrouter?.trim();
     }
     if (m.category === 'core' || m.provider === 'Custom Endpoint') {
       return !!apiKeys.customEndpoint?.trim();
@@ -326,7 +328,7 @@ export const HomeScreen: React.FC = () => {
       if (m.id.includes('claude') && apiKeys.anthropic?.trim()) return true;
       if (m.id.includes('deepseek') && apiKeys.deepseek?.trim()) return true;
       if (m.id.includes('llama') && (apiKeys.groq?.trim() || apiKeys.cerebras?.trim() || apiKeys.sambanova?.trim())) return true;
-      if (m.id.includes('gpt') && apiKeys.openai?.trim()) return true;
+      if ((m.id.includes('gpt') || m.id.includes('o1') || m.id.includes('o3')) && apiKeys.openai?.trim()) return true;
       if (m.id.includes('gemini') && apiKeys.gemini?.trim()) return true;
       if (m.id.includes('mistral') || m.id.includes('codestral')) return !!apiKeys.mistral?.trim();
       if (m.id.includes('xai') || m.id.includes('grok')) return !!apiKeys.xai?.trim();
@@ -344,6 +346,19 @@ export const HomeScreen: React.FC = () => {
   const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
   const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
   const allAvailableModels = [...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
+
+  const [modelSearch, setModelSearch] = useState('');
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  const filterBySearch = (list: ModelItem[]) => {
+    if (!modelSearch.trim()) return list;
+    const q = modelSearch.toLowerCase();
+    return list.filter((m) =>
+      m.name.toLowerCase().includes(q) ||
+      m.provider.toLowerCase().includes(q) ||
+      m.tag.toLowerCase().includes(q)
+    );
+  };
 
   useEffect(() => {
     if (hasAnyProvider && allAvailableModels.length > 0) {
@@ -709,7 +724,7 @@ export const HomeScreen: React.FC = () => {
               </button>
 
               {showModelDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50 max-h-96 overflow-y-auto">
+                <div className="absolute bottom-full left-0 mb-2 w-84 bg-[#12141a]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1 shadow-2xl z-50 max-h-[420px] overflow-y-auto flex flex-col">
                   {!hasAnyProvider ? (
                     <div className="p-4 text-center space-y-3">
                       <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto text-amber-400">
@@ -718,7 +733,7 @@ export const HomeScreen: React.FC = () => {
                       <div className="space-y-1">
                         <div className="text-[13px] font-semibold text-white">Kayıtlı Sağlayıcı Yok</div>
                         <p className="text-[11px] text-[#888888] leading-relaxed">
-                          Model seçebilmek ve yanıt alabilmek için önce Ayarlar'dan en az bir API anahtarı (OpenRouter, Gemini vb.) veya özel endpoint bağlamalısınız.
+                          Model seçebilmek ve yanıt alabilmek için önce Ayarlar'dan en az bir API anahtarı (OpenCode Zen, Copilot, Gemini vb.) bağlamalısınız.
                         </p>
                       </div>
                       <button
@@ -734,156 +749,208 @@ export const HomeScreen: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      {/* Category -1: GitHub Copilot OAuth */}
-                      {copilotModels.length > 0 && (
-                        <div>
-                          <div className="px-3 py-1.5 text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center justify-between bg-[#150f22]">
-                            <span>🔗 GitHub Copilot (OAuth)</span>
-                            <span className="text-[9px] bg-purple-950/70 text-purple-300 border border-purple-800/40 px-1 rounded">Abonelik Aktif</span>
-                          </div>
-                          {copilotModels.map((m) => (
+                      {/* Search Bar at Top of Dropdown */}
+                      <div className="p-2 border-b border-[#202534] sticky top-0 bg-[#12141a] z-10">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#181b24] border border-[#262c3e] text-[12px] text-white">
+                          <Search size={13} className="text-[#888888] flex-shrink-0" />
+                          <input
+                            type="text"
+                            value={modelSearch}
+                            onChange={(e) => setModelSearch(e.target.value)}
+                            placeholder="Model veya sağlayıcı ara..."
+                            className="bg-transparent text-white placeholder-[#666666] text-[11.5px] w-full focus:outline-none"
+                            autoFocus
+                          />
+                          {modelSearch && (
                             <button
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedModel(m.name);
-                                setShowModelDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#241838] transition-colors flex items-center justify-between ${
-                                selectedModel === m.name ? 'bg-[#241838] text-white font-medium' : 'text-[#cccccc]'
-                              }`}
+                              onClick={() => setModelSearch('')}
+                              className="text-[#888888] hover:text-white text-[11px] px-1"
                             >
-                              <div className="flex flex-col">
-                                <span>{m.name}</span>
-                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                              </div>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1e1330] text-purple-300 border border-purple-800/30">
-                                {m.tag}
-                              </span>
+                              ✕
                             </button>
-                          ))}
+                          )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Category 0: OpenCode Zen Gateway */}
-                      {zenModels.length > 0 && (
-                        <div>
-                          <div className="px-3 py-1.5 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between bg-[#0e181e]">
-                            <span>⚡ OpenCode Zen Modelleri</span>
-                            <span className="text-[9px] bg-cyan-950/70 text-cyan-400 border border-cyan-800/40 px-1 rounded">Ücretsiz Gateway</span>
+                      <div className="flex-1 overflow-y-auto">
+                        {/* Category -1: GitHub Copilot OAuth */}
+                        {filterBySearch(copilotModels).length > 0 && (
+                          <div>
+                            <div className="px-3 py-1.5 text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center justify-between bg-[#161026]">
+                              <span>🔗 GitHub Copilot (OAuth)</span>
+                              <span className="text-[9px] bg-purple-950/70 text-purple-300 border border-purple-800/40 px-1 rounded">Abonelik Aktif</span>
+                            </div>
+                            {filterBySearch(copilotModels).map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.name);
+                                  setShowModelDropdown(false);
+                                  setModelSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#221638] transition-colors flex items-center justify-between ${
+                                  selectedModel === m.name ? 'bg-[#221638] text-white font-medium border-l-2 border-purple-400' : 'text-[#cccccc]'
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{m.name}</span>
+                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1e1330] text-purple-300 border border-purple-800/30">
+                                    {m.tag}
+                                  </span>
+                                  {selectedModel === m.name && <Check size={13} className="text-purple-400" />}
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          {zenModels.map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedModel(m.name);
-                                setShowModelDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#1a2630] transition-colors flex items-center justify-between ${
-                                selectedModel === m.name ? 'bg-[#1a2630] text-white font-medium' : 'text-[#cccccc]'
-                              }`}
-                            >
-                              <div className="flex flex-col">
-                                <span>{m.name}</span>
-                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                              </div>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10242a] text-cyan-300 border border-cyan-800/30">
-                                {m.tag}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                        )}
 
-                      {/* Category 1: Free Tier */}
-                      {freeModels.length > 0 && (
-                        <div>
-                          <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#10141a]">
-                            <span>Ücretsiz Modeller (OpenRouter Free)</span>
-                            <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">50 istek/gün</span>
+                        {/* Category 0: OpenCode Zen Gateway */}
+                        {filterBySearch(zenModels).length > 0 && (
+                          <div>
+                            <div className="px-3 py-1.5 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1920]">
+                              <span>⚡ OpenCode Zen Modelleri</span>
+                              <span className="text-[9px] bg-cyan-950/70 text-cyan-400 border border-cyan-800/40 px-1 rounded">Ücretsiz Gateway</span>
+                            </div>
+                            {filterBySearch(zenModels).map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.name);
+                                  setShowModelDropdown(false);
+                                  setModelSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#15232c] transition-colors flex items-center justify-between ${
+                                  selectedModel === m.name ? 'bg-[#15232c] text-white font-medium border-l-2 border-cyan-400' : 'text-[#cccccc]'
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{m.name}</span>
+                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10242a] text-cyan-300 border border-cyan-800/30">
+                                    {m.tag}
+                                  </span>
+                                  {selectedModel === m.name && <Check size={13} className="text-cyan-400" />}
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          {freeModels.map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedModel(m.name);
-                                setShowModelDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                              }`}
-                            >
-                              <div className="flex flex-col">
-                                <span>{m.name}</span>
-                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                              </div>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
-                                {m.tag}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                        )}
 
-                      {/* Category 2: Core Model */}
-                      {coreModels.length > 0 && (
-                        <div>
-                          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                            Özel & Yerel Modeller (Custom Endpoint)
+                        {/* Category 1: Free Tier */}
+                        {filterBySearch(freeModels).length > 0 && (
+                          <div>
+                            <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1a14]">
+                              <span>Ücretsiz Cloud & Inference</span>
+                              <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">Yüksek Hız</span>
+                            </div>
+                            {filterBySearch(freeModels).map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.name);
+                                  setShowModelDropdown(false);
+                                  setModelSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#16271e] transition-colors flex items-center justify-between ${
+                                  selectedModel === m.name ? 'bg-[#16271e] text-white font-medium border-l-2 border-emerald-400' : 'text-[#cccccc]'
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{m.name}</span>
+                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
+                                    {m.tag}
+                                  </span>
+                                  {selectedModel === m.name && <Check size={13} className="text-emerald-400" />}
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          {coreModels.map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedModel(m.name);
-                                setShowModelDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                              }`}
-                            >
-                              <div className="flex flex-col">
-                                <span>{m.name}</span>
-                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                              </div>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
-                                {m.tag}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                        )}
 
-                      {/* Category 3: Pro BYOK */}
-                      {proModels.length > 0 && (
-                        <div>
-                          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                            Pro Modeller (Kredili / Kendi Key'iniz)
+                        {/* Category 2: Core Model */}
+                        {filterBySearch(coreModels).length > 0 && (
+                          <div>
+                            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#202534] bg-[#12141a]">
+                              Özel & Yerel Modeller (Custom Endpoint)
+                            </div>
+                            {filterBySearch(coreModels).map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.name);
+                                  setShowModelDropdown(false);
+                                  setModelSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#20172e] transition-colors flex items-center justify-between ${
+                                  selectedModel === m.name ? 'bg-[#20172e] text-white font-medium border-l-2 border-purple-400' : 'text-[#cccccc]'
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{m.name}</span>
+                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
+                                    {m.tag}
+                                  </span>
+                                  {selectedModel === m.name && <Check size={13} className="text-purple-400" />}
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          {proModels.map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedModel(m.name);
-                                setShowModelDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#222634] transition-colors flex items-center justify-between ${
-                                selectedModel === m.name ? 'bg-[#222634] text-white font-medium' : 'text-[#cccccc]'
-                              }`}
-                            >
-                              <div className="flex flex-col">
-                                <span>{m.name}</span>
-                                <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                              </div>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c202a] text-[#888888]">
-                                {m.tag}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                        )}
 
-                      <div className="p-2 border-t border-[#222530] bg-[#0e1014] flex items-center justify-between text-[11px] text-[#777777] mt-1">
-                        <span>Aktif Sağlayıcılar Bağlı</span>
+                        {/* Category 3: Pro BYOK */}
+                        {filterBySearch(proModels).length > 0 && (
+                          <div>
+                            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#202534] bg-[#12141a]">
+                              Pro Modeller (Kendi Key'iniz / OpenRouter)
+                            </div>
+                            {filterBySearch(proModels).map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedModel(m.name);
+                                  setShowModelDropdown(false);
+                                  setModelSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#162232] transition-colors flex items-center justify-between ${
+                                  selectedModel === m.name ? 'bg-[#162232] text-white font-medium border-l-2 border-sky-400' : 'text-[#cccccc]'
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate">{m.name}</span>
+                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c2230] text-[#9ca3af] border border-[#2c3548]">
+                                    {m.tag}
+                                  </span>
+                                  {selectedModel === m.name && <Check size={13} className="text-sky-400" />}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {modelSearch &&
+                          filterBySearch(allAvailableModels).length === 0 && (
+                            <div className="p-4 text-center text-[12px] text-[#777777]">
+                              "{modelSearch}" ile eşleşen bağlı model bulunamadı.
+                            </div>
+                          )}
+                      </div>
+
+                      <div className="p-2.5 border-t border-[#202534] bg-[#0d0f14] flex items-center justify-between text-[11px] text-[#777777] sticky bottom-0">
+                        <span>{allAvailableModels.length} Model Kullanılabilir</span>
                         <button
                           onClick={() => {
                             setShowModelDropdown(false);
@@ -892,7 +959,7 @@ export const HomeScreen: React.FC = () => {
                           className="text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1"
                         >
                           <Settings size={11} />
-                          <span>Yönet</span>
+                          <span>Ayarlar</span>
                         </button>
                       </div>
                     </>
@@ -1039,7 +1106,8 @@ export const HomeScreen: React.FC = () => {
           <div className="w-full max-w-[780px] flex flex-col items-center justify-center select-none animate-fadeIn py-4">
             {/* Official Emblem */}
             <div className="mb-4 relative group">
-              <div className="w-18 h-18 rounded-2xl bg-[#14161c] border border-[#242834] p-3 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/40">
+              <div className="absolute -inset-3 bg-gradient-to-r from-sky-500/20 via-purple-500/20 to-emerald-500/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className="relative w-18 h-18 rounded-2xl bg-[#14161c] border border-[#242834] p-3 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/40">
                 <ElythraLogo size={56} />
               </div>
             </div>
@@ -1114,19 +1182,36 @@ export const HomeScreen: React.FC = () => {
                 )}
 
                 <div
-                  className={`max-w-[760px] rounded-2xl p-4 transition-all shadow-md ${
+                  className={`max-w-[760px] rounded-2xl p-4 transition-all shadow-md group ${
                     m.role === 'user'
-                      ? 'bg-[#1a1d26] border border-[#2a2f3f] text-[#f3f4f6]'
-                      : 'bg-[#12141a] border border-[#202430] text-[#e5e7eb]'
+                      ? 'bg-[#181b24] border border-[#262c3e] text-[#f3f4f6]'
+                      : 'bg-[#111319] border border-[#1f232e] text-[#e5e7eb]'
                   }`}
                 >
                   <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c202a] select-none text-[11px] text-[#717888]">
                     <span className="font-medium text-[#d1d5db] flex items-center gap-1.5">
                       {m.role === 'user' ? 'Siz' : `Elythra (${m.model || selectedModel})`}
                     </span>
-                    <span className="font-mono text-[10px]">
-                      {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px]">
+                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(m.content);
+                          setCopiedMsgId(m.id);
+                          setTimeout(() => setCopiedMsgId(null), 2000);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-0.5 rounded text-[#717888]"
+                        title="İçeriği Kopyala"
+                      >
+                        {copiedMsgId === m.id ? (
+                          <Check size={11} className="text-emerald-400" />
+                        ) : (
+                          <Copy size={11} />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {m.role === 'assistant' ? (

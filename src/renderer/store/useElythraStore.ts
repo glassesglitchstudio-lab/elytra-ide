@@ -247,7 +247,7 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   permissionMode: 'Default',
-  selectedModel: 'Gemini 2.0 Flash',
+  selectedModel: 'Nemotron 3.5 Lightning',
   thinkingLevel: 'High',
   isGenerating: false,
   streamingContent: '',
@@ -279,7 +279,7 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
 
       set({
         settings: settings || defaultSettings,
-        selectedModel: settings?.defaultModel || 'Gemini 2.0 Flash',
+        selectedModel: settings?.defaultModel || 'Nemotron 3.5 Lightning',
         thinkingLevel: settings?.thinkingLevel || 'High',
         projects: projects || [],
         conversations: convos || [],
@@ -781,7 +781,14 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
         const currentConvoAfter = state.conversations.find((c) => c.id === activeConversationId);
         const lastMsg = currentConvoAfter?.messages[currentConvoAfter.messages.length - 1];
 
-        if ((!lastMsg || lastMsg.role !== 'assistant') && fullReply && typeof fullReply === 'string') {
+        if (
+          (!lastMsg || lastMsg.role !== 'assistant') &&
+          fullReply &&
+          typeof fullReply === 'string' &&
+          !fullReply.startsWith('[Baglanti Hatasi]:') &&
+          !fullReply.startsWith('[Sağlayıcı Yanıtı]:') &&
+          !fullReply.startsWith('HTTP ')
+        ) {
           const assistantMsg: ChatMessage = {
             id: String(Date.now()),
             role: 'assistant',
