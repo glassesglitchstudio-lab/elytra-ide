@@ -825,12 +825,27 @@ function setupIpcHandlers() {
     };
 
     // Live Web Research check (/search, @web, or research intent)
-    const isWebSearchRequested = lastUserMessage.startsWith('/search') || lastUserMessage.includes('@web');
+    const isWebSearchRequested =
+      lastUserMessage.startsWith('/search') ||
+      lastUserMessage.includes('@web') ||
+      /^(araştır|webde ara|internette ara|web'de ara|google'da ara|search|ara)\b/i.test(lastUserMessage.trim()) ||
+      /\b(web'de araştır|internetten araştır|internette araştır|canlı araştırma yap|web araştırması yap|araştır bakalım)\b/i.test(lastUserMessage);
+
     let webContextStr = '';
     if (isWebSearchRequested) {
-      const cleanSearchQuery = lastUserMessage.replace(/^(\/search|@web)\s*/i, '').trim();
+      let cleanSearchQuery = lastUserMessage
+        .replace(/^(\/search|@web)\s*/i, '')
+        .replace(/^(araştır|webde ara|internette ara|web'de ara|google'da ara|search|ara)\s*[:\-]?\s*/i, '')
+        .replace(/\b(web'de araştır|internetten araştır|internette araştır|canlı araştırma yap|web araştırması yap|araştır bakalım)\b/gi, '')
+        .trim();
+
+      if (!cleanSearchQuery) {
+        cleanSearchQuery = lastUserMessage.replace(/^(\/search|@web)\s*/i, '').trim();
+      }
+
       if (cleanSearchQuery) {
-        sendChunk({ chunk: `🌐 [Web Araştırması: "${cleanSearchQuery}"]\n` });
+        // Emit Tools banner at the very beginning of the response as requested
+        sendChunk({ chunk: `Tools: Araştırma Aracı (Web Search) - "${cleanSearchQuery}"\n` });
         try {
           const webItems = await multiSourceWebSearch(cleanSearchQuery);
           if (webItems.length > 0) {
@@ -838,7 +853,9 @@ function setupIpcHandlers() {
               webItems.map((item, idx) => `${idx + 1}. **${item.title}**\nKaynak Link: ${item.link}\nÖzet: ${item.snippet} (${item.source})`).join('\n\n') +
               `\n\n(Yukarıdaki güncel web kaynaklarını referans göstererek kullanıcının sorusunu yanıtla.)\n`;
 
-            sendChunk({ chunk: `> ${webItems.length} kaynak incelendi (GitHub, Tech Web, Dökümanlar).\n\n` });
+            sendChunk({ chunk: `> ${webItems.length} güncel kaynak incelendi (GitHub, Tech Web, Dokümantasyon).\n\n` });
+          } else {
+            sendChunk({ chunk: `> Web araştırması tamamlandı, sonuçlar analiz ediliyor.\n\n` });
           }
         } catch (err) {
           console.error('Web search execution failed:', err);
@@ -922,8 +939,10 @@ function setupIpcHandlers() {
       'gemini-3.8-flash': 'nvidia/nemotron-3.5-lightning:free',
     };
 
-    const targetModel = MODEL_ID_MAP[model] || model;
-    const sysPrompt = settings.systemInstructions || 'You are Elythra Code, an expert autonomous AI software engineer.';
+    const sysPrompt = settings.systemInstructions ||
+      'You are Elythra Code, an expert autonomous AI software engineer.\n' +
+      'KURAL: Herhangi bir araç, araştırma mekanizması veya işlem çalıştırdığında veya kullanıcı bir araç talep ettiğinde, yanıtının EN BAŞINDA mutlaka "Tools: <Kullanılan Araç Adı> - <Hedef / Açıklama>" satırını yazarak başla.\n' +
+      'Örnek: Tools: Araştırma Aracı (Web Search) - "<konu>" veya Tools: Kod Analizörü - "<dosya adı>".';
 
     // 2. Deterministic Provider Routing
     if (model.startsWith('Copilot ') || targetModel.startsWith('copilot/')) {

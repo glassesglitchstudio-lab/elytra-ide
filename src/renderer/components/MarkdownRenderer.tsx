@@ -92,6 +92,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     code?: string;
     title?: string;
     text?: string;
+    toolName?: string;
   }> = [];
 
   const lines = remainingContent.split('\n');
@@ -122,22 +123,60 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Web Search / Browsing pattern
-    if (line.match(/^[>\[]\s*(?:\u{1F310}\s*)?(?:Web Search|Search|Browsing|Ara|Web Research|Web)/iu)) {
+    // Web Search / Research pattern: Tools: Araştırma Aracı ... or Tools: Web Search ... or [Web Araştırması: ...]
+    if (
+      line.match(/^(?:>|\[)?\s*(?:\u{1F310}\s*)?(?:Tools?\s*:\s*)?(?:Araştırma Aracı|Web Search|Search|Browsing|Web Research|Web Araştırması)\b/iu) ||
+      line.match(/^(?:>|\[)?\s*(?:\u{1F310}\s*)?Tools?\s*:\s*.*(?:search|araştır|web|google)/iu)
+    ) {
       flushText();
+      const rawText = line
+        .replace(/^Tools?\s*:\s*/i, '')
+        .replace(/^[>\[]\s*/, '')
+        .replace(/[\]]$/, '')
+        .replace(/^[\u{1F310}\s]+/, '')
+        .trim();
+
+      let toolName = 'Araştırma Aracı (Web Search)';
+      let text = rawText;
+      const parts = rawText.split(/[-–—:]\s*(.+)/);
+      if (parts.length > 1 && (rawText.toLowerCase().includes('araştırma') || rawText.toLowerCase().includes('search') || rawText.toLowerCase().includes('web'))) {
+        toolName = parts[0].trim();
+        text = parts[1].trim();
+      }
+
       blocks.push({
         type: 'search',
-        text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{1F310}\s]+/, ''),
+        toolName,
+        text,
       });
       continue;
     }
 
-    // Tool call pattern: [Tool: ...] or > [Tool Execution: ...]
-    if (line.match(/^[>\[]\s*(?:\u{26A1}\s*)?(?:\**Tool|\[Tool|\**Execution)/iu)) {
+    // Generic Tool call pattern: Tools: <Tool Name> - <Payload> or [Tool: ...] or > [Tool Execution: ...]
+    if (
+      line.match(/^(?:>|\[)?\s*(?:\u{26A1}\s*)?Tools?\s*:\s*/iu) ||
+      line.match(/^[>\[]\s*(?:\u{26A1}\s*)?(?:\**Tools?|\[Tools?|\**Execution)/iu)
+    ) {
       flushText();
+      const rawText = line
+        .replace(/^[>\[]\s*/, '')
+        .replace(/[\]]$/, '')
+        .replace(/^[\u{26A1}\s]+/, '')
+        .replace(/^Tools?\s*:\s*/i, '')
+        .trim();
+
+      let toolName = 'Araç Kullanımı';
+      let text = rawText;
+      const parts = rawText.split(/[-–—:]\s*(.+)/);
+      if (parts.length > 1) {
+        toolName = parts[0].trim();
+        text = parts[1].trim();
+      }
+
       blocks.push({
         type: 'tool',
-        text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{26A1}\s]+/, ''),
+        toolName,
+        text,
       });
       continue;
     }
@@ -228,14 +267,28 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           return (
             <div
               key={idx}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#0e1624] border border-[#1e2e46] text-[12px] text-sky-200 font-mono my-2 select-none shadow-sm"
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-[#0b1424] via-[#0f2038] to-[#0b1424] border border-sky-500/40 text-[12.5px] font-mono my-2.5 shadow-lg shadow-sky-950/20 select-none animate-fadeIn"
             >
-              <div className="w-6 h-6 rounded-lg bg-sky-950/80 border border-sky-800/50 flex items-center justify-center flex-shrink-0">
-                <Globe size={13} className="text-sky-400" />
+              <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center flex-shrink-0 text-sky-400 shadow-inner">
+                <Globe size={15} />
               </div>
-              <span className="flex-1 truncate text-[#cbd5e1]">{block.text}</span>
-              <span className="text-[10px] text-sky-300 font-semibold px-2 py-0.5 bg-sky-950/60 rounded-full border border-sky-700/50 flex-shrink-0">
-                Canlı Web Araştırması
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase bg-sky-950/80 px-1.5 py-0.5 rounded border border-sky-800/50">
+                    TOOLS:
+                  </span>
+                  <span className="text-[12px] font-semibold text-white tracking-wide truncate">
+                    {block.toolName || 'Araştırma Aracı (Web Search)'}
+                  </span>
+                </div>
+                {block.text && (
+                  <span className="text-[11.5px] text-[#93c5fd] truncate mt-0.5 font-normal">
+                    {block.text}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10.5px] font-medium text-sky-300 px-2.5 py-0.5 rounded-full bg-sky-950/80 border border-sky-600/40 flex-shrink-0 shadow-sm">
+                Aktif Kullanıldı
               </span>
             </div>
           );
@@ -245,15 +298,29 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           return (
             <div
               key={idx}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#0f1714] border border-[#1b3327] text-[12px] text-emerald-200 font-mono my-2 select-none shadow-sm"
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-[#0b1c14] via-[#0e271c] to-[#0b1c14] border border-emerald-500/40 text-[12.5px] font-mono my-2.5 shadow-lg shadow-emerald-950/20 select-none animate-fadeIn"
             >
-              <div className="w-6 h-6 rounded-lg bg-emerald-950/80 border border-emerald-800/50 flex items-center justify-center flex-shrink-0">
-                <Terminal size={13} className="text-emerald-400" />
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 text-emerald-400 shadow-inner">
+                <Terminal size={15} />
               </div>
-              <span className="flex-1 truncate text-[#cbd5e1]">{block.text}</span>
-              <span className="flex items-center gap-1 text-[10px] text-emerald-300 font-semibold px-2 py-0.5 bg-emerald-950/60 rounded-full border border-emerald-700/50 flex-shrink-0">
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/50">
+                    TOOLS:
+                  </span>
+                  <span className="text-[12px] font-semibold text-white tracking-wide truncate">
+                    {block.toolName || 'Araç Çağrısı'}
+                  </span>
+                </div>
+                {block.text && (
+                  <span className="text-[11.5px] text-[#a7f3d0] truncate mt-0.5 font-normal">
+                    {block.text}
+                  </span>
+                )}
+              </div>
+              <span className="flex items-center gap-1 text-[10.5px] font-medium text-emerald-300 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-600/40 flex-shrink-0 shadow-sm">
                 <Check size={11} className="text-emerald-400" />
-                <span>Tamamlandı</span>
+                <span>Kullanıldı</span>
               </span>
             </div>
           );
