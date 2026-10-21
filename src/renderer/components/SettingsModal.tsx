@@ -255,21 +255,6 @@ export const SettingsModal: React.FC = () => {
                       >
                         🦙 Ollama (Local :11434)
                       </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({
-                            ...formData,
-                            apiKeys: {
-                              ...formData.apiKeys,
-                              customModel: 'gulmez-27b',
-                            },
-                          })
-                        }
-                        className="px-2.5 py-1 bg-[#201826] hover:bg-[#2c2035] border border-purple-800/40 hover:border-purple-500/60 rounded text-[11px] text-purple-300 transition-all flex items-center gap-1"
-                      >
-                        🧠 Kaggle 0.1-Pro (27B)
-                      </button>
                     </div>
                   </div>
 
@@ -284,11 +269,11 @@ export const SettingsModal: React.FC = () => {
                           apiKeys: { ...formData.apiKeys, customEndpoint: e.target.value },
                         })
                       }
-                      placeholder="https://opencode.ai/zen/v1/chat/completions veya https://...trycloudflare.com/v1"
+                      placeholder="https://opencode.ai/zen/v1/chat/completions veya http://localhost:1234/v1"
                       className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
                     />
                     <p className="text-[10px] text-[#666666] mt-0.5">
-                      vLLM, LM Studio, Zen veya Kaggle tünelinizi bağlayın. Otomatik /chat/completions formatlar.
+                      vLLM, LM Studio, Zen veya yerel API sunucunuzu bağlayın. Otomatik /chat/completions formatlar.
                     </p>
                   </div>
 
@@ -319,7 +304,7 @@ export const SettingsModal: React.FC = () => {
                             apiKeys: { ...formData.apiKeys, customModel: e.target.value },
                           })
                         }
-                        placeholder="nemotron-3-super-free, gulmez-27b vb."
+                        placeholder="nemotron-3-super-free, qwen2.5-coder:7b vb."
                         className="w-full bg-[#111111] border border-[#262626] rounded-btn px-3 py-1.5 text-[#e5e5e5] text-[12px] focus:outline-none focus:border-[#444444]"
                       />
                     </div>
@@ -397,8 +382,7 @@ export const SettingsModal: React.FC = () => {
                           </optgroup>
                         )}
                         {hasCustom && (
-                          <optgroup label="Özel Stüdyo & Custom Endpoint">
-                            <option value="0.1-Pro (27B Çift Beyin)">0.1-Pro (27B Çift Beyin)</option>
+                          <optgroup label="Özel & Yerel Endpoint Modeli">
                             <option value="Custom Endpoint Model">Custom Endpoint Model</option>
                           </optgroup>
                         )}

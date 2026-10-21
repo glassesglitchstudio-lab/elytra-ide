@@ -96,14 +96,7 @@ const AVAILABLE_MODELS: ModelItem[] = [
     category: 'zen',
   },
 
-  // 3. Gülmez & Çetiner Çift Beyin / Custom Endpoint
-  {
-    id: 'elythra-01-pro',
-    name: '0.1-Pro (27B Çift Beyin)',
-    provider: 'Glasses Glitch (Kaggle)',
-    tag: 'Studio Core',
-    category: 'core',
-  },
+  // 3. Özel Endpoint / Yerel Model (vLLM / LM Studio / Ollama)
   {
     id: 'custom-endpoint-model',
     name: 'Custom Endpoint Model',
@@ -711,7 +704,7 @@ export const HomeScreen: React.FC = () => {
                       {coreModels.length > 0 && (
                         <div>
                           <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#222530] mt-1 bg-[#10141a]">
-                            Özel Stüdyo & Custom Endpoint
+                            Özel & Yerel Modeller (Custom Endpoint)
                           </div>
                           {coreModels.map((m) => (
                             <button
@@ -968,9 +961,9 @@ export const HomeScreen: React.FC = () => {
 
             {/* Bottom Minimalist Status Line */}
             <div className="mt-8 text-[11px] font-mono text-[#616878] flex items-center gap-2">
-              <span>Elythra 0.1-Pro</span>
+              <span>Elythra Code</span>
               <span>·</span>
-              <span>Qwen 27B / 72B Core</span>
+              <span>Multi-Model AI Engine</span>
               <span>·</span>
               <span>BYOK Ready</span>
               <span>·</span>

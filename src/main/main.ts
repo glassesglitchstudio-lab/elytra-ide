@@ -546,8 +546,6 @@ function setupIpcHandlers() {
       'Nemotron Reasoning 30B': 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
       'Laguna 2.1 Coder': 'poolside/laguna-s-2.1:free',
       'MiniMax 3.1 Flash': 'minimax/minimax-m3.1-flash:free',
-      '0.1-Pro (27B Çift Beyin)': 'gulmez-27b',
-      '0.1-Pro (27B)': 'gulmez-27b',
       'Claude 3.5 Sonnet': 'anthropic/claude-3.5-sonnet',
       'DeepSeek V3': 'deepseek/deepseek-chat',
       'DeepSeek R1': 'deepseek/deepseek-r1',
@@ -642,7 +640,7 @@ function setupIpcHandlers() {
         stream: true,
       };
     } else if (keys.customEndpoint) {
-      // 3. Universal Custom OpenAI-Compatible Endpoint (vLLM, LM Studio, Ollama, Kaggle b98 Tunnel)
+      // 3. Universal Custom OpenAI-Compatible Endpoint (vLLM, LM Studio, Ollama, Custom Server)
       let customUrl = keys.customEndpoint.trim();
       if (!customUrl.endsWith('/chat/completions') && !customUrl.endsWith('/responses') && !customUrl.endsWith('/completions')) {
         customUrl = customUrl.replace(/\/$/, '') + '/chat/completions';
@@ -650,12 +648,7 @@ function setupIpcHandlers() {
       endpoint = customUrl;
       if (keys.customKey) headers['Authorization'] = `Bearer ${keys.customKey}`;
 
-      let customTargetModel = keys.customModel?.trim() || targetModel;
-      if (customTargetModel.includes('0.1-Pro') || customTargetModel === 'gulmez-27b') {
-        customTargetModel = 'gulmez-27b';
-      } else if (customTargetModel === 'custom-endpoint-model') {
-        customTargetModel = keys.customModel?.trim() || 'default';
-      }
+      let customTargetModel = keys.customModel?.trim() || (targetModel === 'custom-endpoint-model' ? 'default' : targetModel);
 
       body = {
         model: customTargetModel,
@@ -670,7 +663,7 @@ function setupIpcHandlers() {
       headers['X-Title'] = 'Elytra Code';
 
       let orModel = targetModel;
-      if (orModel === 'gulmez-27b' || orModel.includes('0.1-Pro') || orModel === 'gemini-3.8-flash') {
+      if (orModel === 'gemini-3.8-flash' || orModel === 'custom-endpoint-model') {
         orModel = 'nvidia/nemotron-3.5-lightning:free';
       }
 
@@ -694,8 +687,8 @@ function setupIpcHandlers() {
       if (!endpoint) {
         const isTurkish = /[çğıöşüÇĞİÖŞÜ]|\b(nasıl|nedir|nerede|çalıştır|yap|kod|hata|düzelt|ekle|aç|yardım|test|neden|öğren|bak|yaz|oluştur|bu|ile|ve)\b/i.test(lastUserMessage);
         const warningMsg = isTurkish
-          ? `### Aktif Model Bağlantısı Bulunamadı\n\nElytra Code şu anda herhangi bir gerçek AI modeline veya API anahtarına bağlı değil.\n\n**Gerçek model yanıtları almak için:**\n1. Sol alttaki **Ayarlar (Dişli Çark)** butonuna tıklayın.\n2. **API Keys** sekmesinden bir sağlayıcı seçip anahtarınızı girin:\n   - **Google Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) üzerinden ücretsiz anında API anahtarı alınabilir.\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Mevcut API anahtarınızı yapıştırabilirsiniz.\n   - **Gülmez & Çetiner 0.1-Pro (27B) / Özel Model:** Kaggle b98 vLLM tünelini veya yerel modelinizi **Custom Endpoint** alanına girebilirsiniz.\n   - **Ollama (Yerel):** \`http://localhost:11434\` adresini bağlayabilirsiniz.\n\nAnahtarınızı kaydedip tekrar mesaj gönderdiğinizde gerçek yapay zeka modeli doğrudan yanıt verecektir.`
-          : `### No Active AI Model Connected\n\nElytra Code is not currently connected to any live AI model or API key.\n\n**To get real AI responses:**\n1. Click the **Settings (Gear icon)** in the bottom left.\n2. Under **API Keys**, configure a provider:\n   - **Google Gemini:** Free API keys available at [Google AI Studio](https://aistudio.google.com/app/apikey).\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Enter your API key.\n   - **0.1-Pro (27B) / Custom Endpoint:** Connect your Kaggle b98 vLLM tunnel or OpenAI-compatible server.\n   - **Local Model / Ollama:** Connect your local Ollama (\`http://localhost:11434\`).\n\nSave your settings and submit your prompt to receive real model completions.`;
+          ? `### Aktif Model Bağlantısı Bulunamadı\n\nElytra Code şu anda herhangi bir gerçek AI modeline veya API anahtarına bağlı değil.\n\n**Gerçek model yanıtları almak için:**\n1. Sol alttaki **Ayarlar (Dişli Çark)** butonuna tıklayın.\n2. **API Keys** sekmesinden bir sağlayıcı seçip anahtarınızı girin:\n   - **OpenCode Zen:** [opencode.ai/zen](https://opencode.ai/zen) ücretsiz hazır modeller.\n   - **Google Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) üzerinden ücretsiz anında API anahtarı alınabilir.\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Mevcut API anahtarınızı yapıştırabilirsiniz.\n   - **Özel / Yerel Model (vLLM / LM Studio):** API sunucunuzu **Custom Endpoint** alanına girebilirsiniz.\n   - **Ollama (Yerel):** \`http://localhost:11434\` adresini bağlayabilirsiniz.\n\nAnahtarınızı kaydedip tekrar mesaj gönderdiğinizde gerçek yapay zeka modeli doğrudan yanıt verecektir.`
+          : `### No Active AI Model Connected\n\nElytra Code is not currently connected to any live AI model or API key.\n\n**To get real AI responses:**\n1. Click the **Settings (Gear icon)** in the bottom left.\n2. Under **API Keys**, configure a provider:\n   - **OpenCode Zen:** [opencode.ai/zen](https://opencode.ai/zen) free models.\n   - **Google Gemini:** Free API keys available at [Google AI Studio](https://aistudio.google.com/app/apikey).\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Enter your API key.\n   - **Custom Endpoint (vLLM / LM Studio / Local):** Connect your OpenAI-compatible inference server.\n   - **Local Model / Ollama:** Connect your local Ollama (\`http://localhost:11434\`).\n\nSave your settings and submit your prompt to receive real model completions.`;
 
         sendChunk({ chunk: warningMsg });
         sendChunk({ done: true });
