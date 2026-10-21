@@ -282,18 +282,22 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
         automations: autos && autos.length > 0 ? autos : get().automations,
       });
 
-      // Stream Listener with Instant Error Surfacing
+      // Stream Listener with Instant Error Surfacing & Accumulator Buffer
+      let streamBuffer = '';
       window.elythraAPI.onAIStreamChunk((data) => {
         if (data.chunk) {
+          streamBuffer += data.chunk;
           set((s) => ({ streamingContent: s.streamingContent + data.chunk }));
         }
         if (data.done) {
-          const { activeConversationId, streamingContent, conversations } = get();
-          if (activeConversationId && streamingContent) {
+          const { activeConversationId, conversations } = get();
+          const finalContent = streamBuffer || get().streamingContent;
+          streamBuffer = '';
+          if (activeConversationId && finalContent) {
             const assistantMsg: ChatMessage = {
               id: String(Date.now()),
               role: 'assistant',
-              content: streamingContent,
+              content: finalContent,
               timestamp: Date.now(),
               model: get().selectedModel,
             };
@@ -309,11 +313,12 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
           }
         }
         if (data.error) {
+          streamBuffer = '';
           const { activeConversationId, conversations } = get();
           const errorMsg: ChatMessage = {
             id: String(Date.now()),
             role: 'assistant',
-            content: `API / Model Bağlantı Hatası:\n${data.error}\n\nLütfen Ayarlar panelinden API anahtarınızı veya model seçiminizi kontrol edin.`,
+            content: `API / Baglanti Hatasi:\n${data.error}\n\nLutfen Ayarlar panelinden model seciminizi veya API anahtarinizi kontrol edin.`,
             timestamp: Date.now(),
             model: get().selectedModel,
           };
@@ -673,13 +678,56 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
     window.elythraAPI?.saveConversations(updatedConvos);
 
     if (window.elythraAPI) {
-      await window.elythraAPI.sendAIChat({
-        messages: msgs,
-        model: selectedModel,
-        thinkingLevel,
-        permissionMode,
-        projectPath: activeProject?.path,
-      });
+      try {
+        const fullReply = await window.elythraAPI.sendAIChat({
+          messages: msgs,
+          model: selectedModel,
+          thinkingLevel,
+          permissionMode,
+          projectPath: activeProject?.path,
+        });
+
+        // Fail-safe: If the streaming callback did not commit the message for any reason, commit fullReply immediately!
+        const state = get();
+        const currentConvoAfter = state.conversations.find((c) => c.id === activeConversationId);
+        const lastMsg = currentConvoAfter?.messages[currentConvoAfter.messages.length - 1];
+
+        if ((!lastMsg || lastMsg.role !== 'assistant') && fullReply && typeof fullReply === 'string') {
+          const assistantMsg: ChatMessage = {
+            id: String(Date.now()),
+            role: 'assistant',
+            content: fullReply,
+            timestamp: Date.now(),
+            model: state.selectedModel,
+          };
+          const updated = state.conversations.map((c) =>
+            c.id === activeConversationId
+              ? { ...c, messages: [...c.messages, assistantMsg], updatedAt: Date.now() }
+              : c
+          );
+          set({ conversations: updated, isGenerating: false, streamingContent: '' });
+          window.elythraAPI?.saveConversations(updated);
+        } else {
+          set({ isGenerating: false, streamingContent: '' });
+        }
+      } catch (err: any) {
+        console.error('sendAIChat failure:', err);
+        const fallbackMsg: ChatMessage = {
+          id: String(Date.now()),
+          role: 'assistant',
+          content: `[Baglanti Hatasi]: ${err.message || 'Istemci yaniti olusturulamadi.'}`,
+          timestamp: Date.now(),
+          model: selectedModel,
+        };
+        const state = get();
+        const updated = state.conversations.map((c) =>
+          c.id === activeConversationId
+            ? { ...c, messages: [...c.messages, fallbackMsg], updatedAt: Date.now() }
+            : c
+        );
+        set({ conversations: updated, isGenerating: false, streamingContent: '' });
+        window.elythraAPI?.saveConversations(updated);
+      }
     }
   },
 

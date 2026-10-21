@@ -514,12 +514,25 @@ function setupIpcHandlers() {
   ipcMain.handle('storage:saveAutomations', (_, autos: AutomationRule[]) => writeJsonFile(AUTOMATIONS_FILE, autos));
 
   // AI Chat Request Handler (Full BYOK + Smart Local Autonomous Reasoning Engine)
-  ipcMain.handle('ai:sendChat', async (_, params) => {
+  ipcMain.handle('ai:sendChat', async (event, params) => {
     const settings = readJsonFile(SETTINGS_FILE, defaultSettings);
     const { messages, model, thinkingLevel, projectPath } = params;
     const keys = settings.apiKeys || {};
 
     const lastUserMessage = messages[messages.length - 1]?.content || '';
+
+    const sendChunk = (data: { chunk?: string; done?: boolean; error?: string }) => {
+      try {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('ai:streamChunk', data);
+        }
+      } catch {}
+      try {
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents !== event.sender) {
+          mainWindow.webContents.send('ai:streamChunk', data);
+        }
+      } catch {}
+    };
 
     let endpoint = '';
     let headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -545,7 +558,7 @@ function setupIpcHandlers() {
         messages: [{ role: 'system', content: settings.systemInstructions }, ...messages],
         stream: true,
       };
-    } else if (keys.gemini) {
+    } else if (keys.gemini && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
       const geminiModel = 'gemini-2.0-flash';
       endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${keys.gemini}&alt=sse`;
       body = {
@@ -612,289 +625,16 @@ function setupIpcHandlers() {
     }
 
     try {
-      // If NO API key is supplied, execute intelligent local reasoning engine
+      // If NO API key is supplied, do NOT fake responses. Inform the user clearly.
       if (!endpoint) {
-        // Collect actual workspace file names and package.json if in a project
-        let projectFiles: string[] = [];
-        let pkgJson: any = null;
-        let projectName = projectPath ? path.basename(projectPath) : 'Global Sandbox';
-
-        if (projectPath && fs.existsSync(projectPath)) {
-          try {
-            const list = fs.readdirSync(projectPath).filter((f) => !f.startsWith('.') && f !== 'node_modules');
-            projectFiles = list.slice(0, 15);
-            const pkgPath = path.join(projectPath, 'package.json');
-            if (fs.existsSync(pkgPath)) {
-              pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-            }
-          } catch {}
-        }
-
         const isTurkish = /[çğıöşüÇĞİÖŞÜ]|\b(nasıl|nedir|nerede|çalıştır|yap|kod|hata|düzelt|ekle|aç|yardım|test|neden|öğren|bak|yaz|oluştur|bu|ile|ve)\b/i.test(lastUserMessage);
+        const warningMsg = isTurkish
+          ? `### Aktif Model Bağlantısı Bulunamadı\n\nElytra Code şu anda herhangi bir gerçek AI modeline veya API anahtarına bağlı değil.\n\n**Gerçek model yanıtları almak için:**\n1. Sol alttaki **Ayarlar (Dişli Çark)** butonuna tıklayın.\n2. **API Keys** sekmesinden bir sağlayıcı seçip anahtarınızı girin:\n   - **Google Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) üzerinden ücretsiz anında API anahtarı alınabilir.\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Mevcut API anahtarınızı yapıştırabilirsiniz.\n   - **Gülmez & Çetiner 0.1-Pro (27B) / Özel Model:** Kaggle b98 vLLM tünelini veya yerel modelinizi **Custom Endpoint** alanına girebilirsiniz.\n   - **Ollama (Yerel):** \`http://localhost:11434\` adresini bağlayabilirsiniz.\n\nAnahtarınızı kaydedip tekrar mesaj gönderdiğinizde gerçek yapay zeka modeli doğrudan yanıt verecektir.`
+          : `### No Active AI Model Connected\n\nElytra Code is not currently connected to any live AI model or API key.\n\n**To get real AI responses:**\n1. Click the **Settings (Gear icon)** in the bottom left.\n2. Under **API Keys**, configure a provider:\n   - **Google Gemini:** Free API keys available at [Google AI Studio](https://aistudio.google.com/app/apikey).\n   - **OpenRouter / Groq / Anthropic / OpenAI / DeepSeek:** Enter your API key.\n   - **0.1-Pro (27B) / Custom Endpoint:** Connect your Kaggle b98 vLLM tunnel or OpenAI-compatible server.\n   - **Local Model / Ollama:** Connect your local Ollama (\`http://localhost:11434\`).\n\nSave your settings and submit your prompt to receive real model completions.`;
 
-        const thinkingPhase = isTurkish
-          ? `### Thought Process (${thinkingLevel} Akıl Yürütme Bütçesi · 0.8s)
-- [Hedef Analizi]: Kullanıcının "${lastUserMessage.slice(0, 60)}" komutu ve niyet haritası çıkarıldı.
-- [Çalışma Alanı]: \`${projectName}\` dizini ve dosya hiyerarşisi analiz edildi.
-- [Tespit Edilen Varlıklar]: ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Bağımsız oturum'}.
-- [Mimari Karar]: Gerçek bağlam odaklı, doğrudan uygulanabilir çözüm sentezleniyor.\n\n`
-          : `### Thought Process (${thinkingLevel} Reasoning Budget · 0.8s)
-- [Goal Parsing]: Analyzed intent for "${lastUserMessage.slice(0, 60)}".
-- [Workspace Inspection]: Inspected \`${projectName}\` directory structure.
-- [Detected Artifacts]: ${projectFiles.length > 0 ? projectFiles.join(', ') : 'Standalone session'}.
-- [Architectural Decision]: Formulating clean, executable recommendations.\n\n`;
-
-        const toolBadge = `> [Tool Execution: inspect_workspace_manifest] -> ${pkgJson ? 'package.json incelendi' : 'Çalışma alanı hazır'}\n\n`;
-
-        let responseBody = '';
-
-        if (lastUserMessage.startsWith('/explain') || lastUserMessage.toLowerCase().includes('mimari') || lastUserMessage.toLowerCase().includes('architecture')) {
-          if (isTurkish) {
-            responseBody = `## Kod Mimarisi ve Çalışma Prensipleri
-
-Projeniz (\`${projectName}\`) mimarisi incelendi:
-1. **Modüler Katman Ayrımı:** UI bileşenleri, merkezi durum yönetimi (Zustand) ve sistem süreçleri (IPC) birbirinden izole edilmiştir.
-2. **Reaktif Veri Akışı:** Tek yönlü durum yönetimi sayesinde bileşenler senkronize ve öngörülebilir şekilde güncellenir.
-3. **Gerçek Zamanlı İletişim:** Electron IPC üzerinden çift yönlü asenkron veri akışı sağlanmaktadır.
-
-\`\`\`typescript
-// Mimari Akış ve Tip Tanımlaması
-export interface AppExecutionContext {
-  workspace: string;
-  activeModel: string;
-  timestamp: number;
-}
-\`\`\`
-
-Daha derinlemesine incelemek istediğiniz özel bir bileşen var mı?`;
-          } else {
-            responseBody = `## Codebase Architecture
-
-Analysis for \`${projectName}\`:
-1. **Separation of Concerns:** Clear boundary between renderer UI, reactive store, and main IPC runtime.
-2. **Deterministic State:** Single-direction reactive store ensuring zero layout thrashing.
-3. **Execution Pipeline:** Real child process spawning with IPC piping for non-blocking I/O.
-
-\`\`\`typescript
-export interface AppExecutionContext {
-  workspace: string;
-  activeModel: string;
-  timestamp: number;
-}
-\`\`\`
-
-Would you like to examine a specific module or write unit tests?`;
-          }
-        } else if (lastUserMessage.startsWith('/fix') || lastUserMessage.toLowerCase().includes('hata') || lastUserMessage.toLowerCase().includes('fix')) {
-          if (isTurkish) {
-            responseBody = `## Tanılama ve Hata Onarımı
-
-Çalışma alanı incelendi ve tespit edilen koruyucu iyileştirmeler:
-- Null/Undefined referans korumaları kontrol edildi.
-- Tip güvenliği ve asenkron hata yakalama (try/catch) kalkanları oluşturuldu.
-
-\`\`\`typescript
-// Koruyucu Güvenlik Kalkanı (Defensive Guard)
-export function safeExecute<T>(fn: () => T, fallback: T): T {
-  try {
-    return fn();
-  } catch (err) {
-    console.error('[Elythra Guard] Yakalanan Hata:', err);
-    return fallback;
-  }
-}
-\`\`\`
-
-Bu kodu doğrudan aktif editörünüze eklemek için yukarıdaki **Editöre Aktar** butonuna basabilirsiniz.`;
-          } else {
-            responseBody = `## Diagnostics & Bug Repair
-
-Workspace review results:
-- Type validations and async promises inspected.
-- Guard rails and exception boundaries recommended.
-
-\`\`\`typescript
-export function safeExecute<T>(fn: () => T, fallback: T): T {
-  try {
-    return fn();
-  } catch (err) {
-    console.error('[Elythra Guard] Caught error:', err);
-    return fallback;
-  }
-}
-\`\`\`
-
-Click **Apply to Editor** above to inject this snippet directly into your active file.`;
-          }
-        } else if (lastUserMessage.startsWith('/test') || lastUserMessage.toLowerCase().includes('test')) {
-          if (isTurkish) {
-            responseBody = `## Birim Test Paketi
-
-Bileşenleriniz için kapsamlı test senaryoları:
-
-\`\`\`typescript
-import { describe, it, expect } from 'vitest';
-
-describe('${projectName} Test Paketi', () => {
-  it('başlangıç durumunun doğruluğunu teyit eder', () => {
-    const readyState = { initialized: true, version: '1.0.0' };
-    expect(readyState.initialized).toBe(true);
-  });
-
-  it('asenkron veri akışını güvenle tamamlar', async () => {
-    const data = await Promise.resolve({ status: 'ok' });
-    expect(data.status).toBe('ok');
-  });
-});
-\`\`\`
-
-Terminalde \`npm test\` komutunu çalıştırarak bu testleri hemen yürütebilirsiniz.`;
-          } else {
-            responseBody = `## Comprehensive Test Suite
-
-Here is a ready-to-run unit test suite:
-
-\`\`\`typescript
-import { describe, it, expect } from 'vitest';
-
-describe('${projectName} Test Suite', () => {
-  it('verifies initial state health', () => {
-    const state = { initialized: true };
-    expect(state.initialized).toBe(true);
-  });
-
-  it('handles async pipelines safely', async () => {
-    const res = await Promise.resolve(200);
-    expect(res).toBe(200);
-  });
-});
-\`\`\`
-
-Run \`npm test\` in your terminal panel anytime.`;
-          }
-        } else if (lastUserMessage.toLowerCase().includes('çalıştır') || lastUserMessage.toLowerCase().includes('run') || lastUserMessage.toLowerCase().includes('derle') || lastUserMessage.toLowerCase().includes('build')) {
-          if (pkgJson && pkgJson.scripts) {
-            const scriptsList = Object.entries(pkgJson.scripts)
-              .map(([k, v]) => `- \`npm run ${k}\`: ${v}`)
-              .join('\n');
-            responseBody = isTurkish
-              ? `## Projeyi Çalıştırma Rehberi
-
-\`package.json\` dosyanızdaki mevcut scriptler tespit edildi:
-${scriptsList}
-
-Projeyi geliştirmeye başlamak için terminale şunu yazabilirsiniz:
-\`\`\`bash
-npm run dev
-\`\`\`
-
-Projeyi paketlemek ve exe oluşturmak için:
-\`\`\`bash
-npm run pack:win
-\`\`\``
-              : `## Execution & Build Instructions
-
-Detected scripts from your \`package.json\`:
-${scriptsList}
-
-To start development:
-\`\`\`bash
-npm run dev
-\`\`\`
-
-To build binaries:
-\`\`\`bash
-npm run pack:win
-\`\`\``;
-          } else {
-            responseBody = isTurkish
-              ? `## Proje Başlatma Adımları
-
-1. Bağımlılıkları yükleyin:
-\`\`\`bash
-npm install
-\`\`\`
-2. Geliştirme sunucusunu çalıştırın:
-\`\`\`bash
-npm run dev
-\`\`\``
-              : `## Project Execution Steps
-
-1. Install dependencies:
-\`\`\`bash
-npm install
-\`\`\`
-2. Run development server:
-\`\`\`bash
-npm run dev
-\`\`\``;
-          }
-        } else {
-          if (isTurkish) {
-            responseBody = `## Elythra Code Asistanı
-
-Sorunuzu inceledim:
-> **"${lastUserMessage}"**
-
-### Öneriler ve Çözüm:
-1. **Aktif Çalışma Alanı:** \`${projectName}\` ${projectFiles.length > 0 ? `(${projectFiles.slice(0, 5).join(', ')})` : ''}
-2. **Doğrudan Model Erişimi:** Şu anda **Dahili Elythra Motoru** devrededir. Gemini 2.0 Flash, Claude 3.5 Sonnet veya DeepSeek R1 modellerine bağlanmak için sol alttaki **Ayarlar** butonundan API anahtarınızı girebilirsiniz.
-3. **Uygulanabilir Kod:**
-
-\`\`\`typescript
-// Elythra İşlem Çekirdeği
-export async function executeWorkspaceTask(task: string) {
-  console.log('[Elythra] Görev işleniyor:', task);
-  return {
-    success: true,
-    task,
-    timestamp: Date.now()
-  };
-}
-\`\`\`
-
-Bir sonraki adımda ne yapmak istersiniz? Editörde kod yazabilir, terminalde komut çalıştırabilir veya yeni bir dosya oluşturabiliriz.`;
-          } else {
-            responseBody = `## Elythra Code Assistant
-
-I reviewed your instruction:
-> **"${lastUserMessage}"**
-
-### Recommendations & Architecture:
-1. **Active Workspace:** \`${projectName}\`
-2. **BYOK Live Models:** Using the **Built-in Elythra Engine**. To connect directly to Gemini 2.0 Flash, Claude 3.5 Sonnet, or DeepSeek R1, enter your API key under **Settings**.
-3. **Executable Implementation:**
-
-\`\`\`typescript
-export async function executeWorkspaceTask(task: string) {
-  console.log('[Elythra] Processing task:', task);
-  return {
-    success: true,
-    task,
-    timestamp: Date.now()
-  };
-}
-\`\`\`
-
-How would you like to proceed next?`;
-          }
-        }
-
-        const fullSimulated = thinkingPhase + toolBadge + responseBody;
-
-        // High-speed smooth streaming
-        let currentChunk = '';
-        for (let i = 0; i < fullSimulated.length; i++) {
-          currentChunk += fullSimulated[i];
-          if (currentChunk.length >= 8 || i === fullSimulated.length - 1) {
-            mainWindow?.webContents.send('ai:streamChunk', { chunk: currentChunk });
-            currentChunk = '';
-            await new Promise((r) => setTimeout(r, 8));
-          }
-        }
-
-        mainWindow?.webContents.send('ai:streamChunk', { done: true });
-        return fullSimulated;
+        sendChunk({ chunk: warningMsg });
+        sendChunk({ done: true });
+        return warningMsg;
       }
 
       // Live Provider Fetch with Detailed Error Surfacing
@@ -907,8 +647,8 @@ How would you like to proceed next?`;
       if (!response.ok) {
         const errText = await response.text();
         const errorMsg = `HTTP ${response.status} ${response.statusText || 'Error'}: ${errText.slice(0, 300)}`;
-        mainWindow?.webContents.send('ai:streamChunk', { error: errorMsg });
-        mainWindow?.webContents.send('ai:streamChunk', { done: true });
+        sendChunk({ error: errorMsg });
+        sendChunk({ done: true });
         return errorMsg;
       }
 
@@ -930,7 +670,7 @@ How would you like to proceed next?`;
                   const parsed = JSON.parse(line.slice(6));
                   if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
                     fullContent += parsed.delta.text;
-                    mainWindow?.webContents.send('ai:streamChunk', { chunk: parsed.delta.text });
+                    sendChunk({ chunk: parsed.delta.text });
                   }
                 } catch {}
               }
@@ -943,7 +683,7 @@ How would you like to proceed next?`;
                   const parsed = JSON.parse(line);
                   if (parsed.message?.content) {
                     fullContent += parsed.message.content;
-                    mainWindow?.webContents.send('ai:streamChunk', { chunk: parsed.message.content });
+                    sendChunk({ chunk: parsed.message.content });
                   }
                 } catch {}
               }
@@ -961,7 +701,7 @@ How would you like to proceed next?`;
                     '';
                   if (delta) {
                     fullContent += delta;
-                    mainWindow?.webContents.send('ai:streamChunk', { chunk: delta });
+                    sendChunk({ chunk: delta });
                   }
                 } catch {}
               }
@@ -970,13 +710,13 @@ How would you like to proceed next?`;
         }
       }
 
-      mainWindow?.webContents.send('ai:streamChunk', { done: true });
+      sendChunk({ done: true });
       return fullContent;
     } catch (err: any) {
       console.error('AI chat error:', err);
       const userError = `Bağlantı Hatası: ${err.message || 'API servisine erişilemedi'}. Lütfen internet bağlantınızı ve API ayarlarınızı kontrol edin.`;
-      mainWindow?.webContents.send('ai:streamChunk', { error: userError });
-      mainWindow?.webContents.send('ai:streamChunk', { done: true });
+      sendChunk({ error: userError });
+      sendChunk({ done: true });
       return userError;
     }
   });
