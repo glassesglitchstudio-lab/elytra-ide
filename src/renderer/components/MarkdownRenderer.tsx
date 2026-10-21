@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Brain,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -11,6 +12,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 import { useElythraStore } from '../store/useElythraStore';
 
@@ -24,7 +26,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [executedCmdId, setExecutedCmdId] = useState<string | null>(null);
-  const [isThoughtOpen, setIsThoughtOpen] = useState(true);
+
+  // Default to collapsed (Thought Process >) matching Cursor / Antigravity design
+  const [isThoughtOpen, setIsThoughtOpen] = useState(false);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -44,21 +48,46 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     setTimeout(() => setExecutedCmdId(null), 2500);
   };
 
-  // 1. Check for Thought Process block
-  let thoughtContent: string | null = null;
+  // 1. Comprehensive Thought Process Extraction (<think>, <thought>, <reasoning>, markdown headers)
+  let thoughts: string[] = [];
   let remainingContent = content;
+  let isCurrentlyThinking = false;
 
-  const thoughtRegex = /### (?:\u{1F9E0}\s*)?Thought Process[^\n]*\n([\s\S]*?)(?=\n## |\n### |\n\n[A-Z]|\n---|\n\[|\n>|$)/iu;
-  const thoughtMatch = content.match(thoughtRegex);
+  // Closed <think>...</think>, <thought>...</thought>, <reasoning>...</reasoning>
+  const closedTagRegex = /<(?:think|thought|reasoning)>([\s\S]*?)<\/(?:think|thought|reasoning)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = closedTagRegex.exec(content)) !== null) {
+    if (match[1].trim()) {
+      thoughts.push(match[1].trim());
+    }
+  }
+  remainingContent = remainingContent.replace(closedTagRegex, '').trim();
 
-  if (thoughtMatch) {
-    thoughtContent = thoughtMatch[1].trim();
-    remainingContent = content.replace(thoughtMatch[0], '').trim();
+  // Active unclosed <think> tag at the end (live streaming)
+  const openTagMatch = remainingContent.match(/<(?:think|thought|reasoning)>([\s\S]*)$/i);
+  if (openTagMatch) {
+    if (openTagMatch[1].trim()) {
+      thoughts.push(openTagMatch[1].trim());
+    }
+    remainingContent = remainingContent.replace(/<(?:think|thought|reasoning)>[\s\S]*$/i, '').trim();
+    isCurrentlyThinking = true;
   }
 
-  // 2. Parse remaining content into blocks (code blocks, tool calls, markdown paragraphs)
+  // Markdown headers (### Thought Process / ### Düşünce Süreci / Thinking Process:)
+  if (thoughts.length === 0) {
+    const mdThoughtRegex = /###?\s*(?:🧠|\u{1F9E0}\s*)?(?:Thought Process|Thinking Process|Düşünce Süreci|Thinking)[^\n]*\n([\s\S]*?)(?=\n## |\n### |\n---|\n```|$)/iu;
+    const mdMatch = remainingContent.match(mdThoughtRegex);
+    if (mdMatch) {
+      thoughts.push(mdMatch[1].trim());
+      remainingContent = remainingContent.replace(mdMatch[0], '').trim();
+    }
+  }
+
+  const thoughtContent = thoughts.length > 0 ? thoughts.join('\n\n') : null;
+
+  // 2. Parse remaining content into blocks (code blocks, tool calls, search steps, markdown paragraphs)
   const blocks: Array<{
-    type: 'code' | 'tool' | 'text' | 'error';
+    type: 'code' | 'tool' | 'search' | 'text' | 'error';
     language?: string;
     code?: string;
     title?: string;
@@ -75,7 +104,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     if (currentTextLines.length > 0) {
       const textBlock = currentTextLines.join('\n').trim();
       if (textBlock) {
-        if (textBlock.includes('API Error') || textBlock.includes('Diagnostic') || textBlock.includes('Hata:') || textBlock.includes('Bağlantı Hatası:')) {
+        if (
+          textBlock.includes('API Error') ||
+          textBlock.includes('Diagnostic') ||
+          textBlock.includes('Hata:') ||
+          textBlock.includes('Bağlantı Hatası:')
+        ) {
           blocks.push({ type: 'error', text: textBlock.replace(/^[\u{26A0}\s]+/, '') });
         } else {
           blocks.push({ type: 'text', text: textBlock });
@@ -88,10 +122,23 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
+    // Web Search / Browsing pattern
+    if (line.match(/^[>\[]\s*(?:\u{1F310}\s*)?(?:Web Search|Search|Browsing|Ara|Web Research|Web)/iu)) {
+      flushText();
+      blocks.push({
+        type: 'search',
+        text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{1F310}\s]+/, ''),
+      });
+      continue;
+    }
+
     // Tool call pattern: [Tool: ...] or > [Tool Execution: ...]
     if (line.match(/^[>\[]\s*(?:\u{26A1}\s*)?(?:\**Tool|\[Tool|\**Execution)/iu)) {
       flushText();
-      blocks.push({ type: 'tool', text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{26A1}\s]+/, '') });
+      blocks.push({
+        type: 'tool',
+        text: line.replace(/^[>\[]\s*/, '').replace(/[\]]$/, '').replace(/^[\u{26A1}\s]+/, ''),
+      });
       continue;
     }
 
@@ -134,35 +181,40 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   }
 
   return (
-    <div className="space-y-3.5 leading-relaxed text-[#e5e5e5] text-[13.5px]">
-      {/* Antigravity Thought Process Accordion */}
+    <div className="space-y-3 leading-relaxed text-[#e5e5e5] text-[13.5px]">
+      {/* Sleek Minimalist Thought Process Accordion (Cursor / Claude / Antigravity Style) */}
       {thoughtContent && (
-        <div className="rounded-xl border border-[#222222] bg-[#121212] overflow-hidden transition-all shadow-sm">
+        <div className="mb-3.5 select-none font-sans">
           <button
             onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-            className="w-full px-3.5 py-2 flex items-center justify-between text-[12px] font-medium text-[#999999] hover:text-[#e5e5e5] hover:bg-[#181818] transition-colors select-none"
+            className="inline-flex items-center gap-2 py-1 px-2.5 -ml-1 rounded-lg text-[13px] font-medium text-[#93a0b3] hover:text-[#e2e8f0] hover:bg-white/[0.05] transition-all cursor-pointer group"
           >
-            <div className="flex items-center gap-2">
-              <Sparkles size={13} className="text-sky-400" />
-              <span>Thought Process</span>
-              <span className="text-[10px] text-[#666666] font-mono px-1.5 py-0.2 bg-[#1c1c1c] rounded">
-                High Budget
+            <Brain
+              size={15}
+              className={`text-[#8896aa] group-hover:text-sky-400 transition-colors ${
+                isCurrentlyThinking ? 'animate-pulse text-sky-400' : ''
+              }`}
+            />
+            <span className="tracking-tight text-[#94a3b8] group-hover:text-[#e2e8f0]">
+              Thought Process
+            </span>
+            {isCurrentlyThinking && (
+              <span className="flex items-center gap-1 text-[11px] text-sky-400/90 font-mono font-normal">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping" />
+                <span>(Thinking...)</span>
               </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-[#666666]">
-                {isThoughtOpen ? 'Hide' : 'Show steps'}
-              </span>
+            )}
+            <span className="text-[#64748b] group-hover:text-[#94a3b8] transition-transform">
               {isThoughtOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </div>
+            </span>
           </button>
 
+          {/* Smooth Collapsible Content with Soft Gray Text */}
           {isThoughtOpen && (
-            <div className="px-3.5 pb-3 pt-1 border-t border-[#1c1c1c] text-[12px] text-[#9ca3af] space-y-1.5 font-mono leading-relaxed bg-[#0f0f0f]">
-              {thoughtContent.split('\n').map((tLine, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <span className="text-sky-400 mt-0.5">•</span>
-                  <span className="flex-1 whitespace-pre-wrap">{tLine.replace(/^[-\*•]\s*/, '')}</span>
+            <div className="mt-2 pl-3.5 ml-1 border-l-2 border-[#2b3240] text-[12.5px] leading-relaxed text-[#8f9cae] space-y-2 select-text font-sans animate-fadeIn">
+              {thoughtContent.split('\n\n').map((para, pIdx) => (
+                <div key={pIdx} className="whitespace-pre-wrap">
+                  {para}
                 </div>
               ))}
             </div>
@@ -172,6 +224,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
 
       {/* Main Content Blocks */}
       {blocks.map((block, idx) => {
+        if (block.type === 'search') {
+          return (
+            <div
+              key={idx}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#11141c] border border-[#202736] text-[12px] text-[#93a0b3] font-mono my-2 select-none"
+            >
+              <Globe size={13} className="text-sky-400" />
+              <span className="flex-1 truncate">{block.text}</span>
+              <span className="text-[10px] text-sky-400 font-medium px-1.5 py-0.5 bg-sky-950/40 rounded border border-sky-800/40">
+                Web Research
+              </span>
+            </div>
+          );
+        }
+
         if (block.type === 'tool') {
           return (
             <div

@@ -681,6 +681,7 @@ function setupIpcHandlers() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
+      let inReasoning = false;
 
       if (reader) {
         while (true) {
@@ -721,21 +722,45 @@ function setupIpcHandlers() {
               if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                 try {
                   const parsed = JSON.parse(line.slice(6));
-                  const delta =
-                    parsed.choices?.[0]?.delta?.content ||
+                  const reasoningDelta =
                     parsed.choices?.[0]?.delta?.reasoning_content ||
                     parsed.choices?.[0]?.delta?.reasoning ||
+                    '';
+                  const contentDelta =
+                    parsed.choices?.[0]?.delta?.content ||
                     parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
                     '';
-                  if (delta) {
-                    fullContent += delta;
-                    sendChunk({ chunk: delta });
+
+                  if (reasoningDelta) {
+                    if (!inReasoning) {
+                      inReasoning = true;
+                      fullContent += '<think>\n';
+                      sendChunk({ chunk: '<think>\n' });
+                    }
+                    fullContent += reasoningDelta;
+                    sendChunk({ chunk: reasoningDelta });
+                  }
+
+                  if (contentDelta) {
+                    if (inReasoning) {
+                      inReasoning = false;
+                      fullContent += '\n</think>\n\n';
+                      sendChunk({ chunk: '\n</think>\n\n' });
+                    }
+                    fullContent += contentDelta;
+                    sendChunk({ chunk: contentDelta });
                   }
                 } catch {}
               }
             }
           }
         }
+      }
+
+      if (inReasoning) {
+        inReasoning = false;
+        fullContent += '\n</think>\n\n';
+        sendChunk({ chunk: '\n</think>\n\n' });
       }
 
       sendChunk({ done: true });
