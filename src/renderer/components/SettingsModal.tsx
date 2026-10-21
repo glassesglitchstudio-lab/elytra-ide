@@ -35,7 +35,7 @@ interface ProviderItem {
 }
 
 export const SettingsModal: React.FC = () => {
-  const { settings, updateSettings, setActiveModal } = useElythraStore();
+  const { settings, updateSettings, setActiveModal, setSelectedModel } = useElythraStore();
 
   const [activeTab, setActiveTab] = useState<'keys' | 'models' | 'editor' | 'terminal' | 'rules'>('keys');
   const [formData, setFormData] = useState({ ...settings });
@@ -51,6 +51,47 @@ export const SettingsModal: React.FC = () => {
     verificationUri?: string;
     error?: string;
   }>({ status: 'idle' });
+
+  const [copilotTesting, setCopilotTesting] = useState(false);
+  const [copilotTestResult, setCopilotTestResult] = useState<{
+    valid: boolean;
+    user?: string;
+    error?: string;
+  } | null>(null);
+
+  const handleTestCopilot = async (tokenOverride?: string) => {
+    const token = (tokenOverride !== undefined ? tokenOverride : formData.apiKeys.githubCopilot || '').trim();
+    if (!token) {
+      setCopilotTestResult({ valid: false, error: 'Test edilecek token girilmedi.' });
+      return;
+    }
+    setCopilotTesting(true);
+    setCopilotTestResult(null);
+    try {
+      const res = await window.elythraAPI?.copilotTestToken(token);
+      setCopilotTestResult(res || { valid: false, error: 'Yanıt alınamadı' });
+    } catch (err: any) {
+      setCopilotTestResult({ valid: false, error: err.message || 'Bağlantı hatası' });
+    } finally {
+      setCopilotTesting(false);
+    }
+  };
+
+  const handleSaveManualCopilotToken = async (manualToken: string) => {
+    const trimmed = manualToken.trim();
+    const updated = {
+      ...formData,
+      apiKeys: { ...formData.apiKeys, githubCopilot: trimmed },
+    };
+    setFormData(updated);
+    await updateSettings(updated);
+    if (trimmed) {
+      setSelectedModel('Copilot Claude 3.5 Sonnet');
+      handleTestCopilot(trimmed);
+    } else {
+      setCopilotTestResult(null);
+    }
+  };
 
   const handleSave = async () => {
     await updateSettings(formData);
@@ -282,12 +323,17 @@ export const SettingsModal: React.FC = () => {
         const pollRes = await window.elythraAPI?.copilotPollToken(deviceCode);
         if (pollRes?.access_token) {
           clearInterval(pollTimer);
-          setFormData((prev) => ({
-            ...prev,
-            apiKeys: { ...prev.apiKeys, githubCopilot: pollRes.access_token },
-          }));
+          const newToken = pollRes.access_token.trim();
+          const updated = {
+            ...formData,
+            apiKeys: { ...formData.apiKeys, githubCopilot: newToken },
+          };
+          setFormData(updated);
+          await updateSettings(updated);
+          setSelectedModel('Copilot Claude 3.5 Sonnet');
           setCopilotAuth({ status: 'success' });
-          setTimeout(() => setCopilotAuth({ status: 'idle' }), 5000);
+          handleTestCopilot(newToken);
+          setTimeout(() => setCopilotAuth({ status: 'idle' }), 6000);
         } else if (pollRes?.error && pollRes.error !== 'authorization_pending' && pollRes.error !== 'slow_down') {
           clearInterval(pollTimer);
           setCopilotAuth({ status: 'error', error: pollRes.error });
@@ -500,18 +546,32 @@ export const SettingsModal: React.FC = () => {
                           <span>{formData.apiKeys.githubCopilot ? 'Hesabı Yeniden Yetkilendir' : 'GitHub ile Oturum Aç (Cihaz Kodu)'}</span>
                         </button>
                         {formData.apiKeys.githubCopilot && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFormData({
-                                ...formData,
-                                apiKeys: { ...formData.apiKeys, githubCopilot: '' },
-                              })
-                            }
-                            className="px-3 py-2 bg-red-950/40 hover:bg-red-950/70 text-red-400 border border-red-900/40 rounded-lg text-[11.5px] transition-colors"
-                          >
-                            Bağlantıyı Kes
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTestCopilot()}
+                              disabled={copilotTesting}
+                              className="px-3 py-2 bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-700/50 rounded-lg text-[11.5px] transition-colors flex items-center gap-1.5"
+                            >
+                              {copilotTesting ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                              <span>{copilotTesting ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const updated = {
+                                  ...formData,
+                                  apiKeys: { ...formData.apiKeys, githubCopilot: '' },
+                                };
+                                setFormData(updated);
+                                await updateSettings(updated);
+                                setCopilotTestResult(null);
+                              }}
+                              className="px-3 py-2 bg-red-950/40 hover:bg-red-950/70 text-red-400 border border-red-900/40 rounded-lg text-[11.5px] transition-colors"
+                            >
+                              Bağlantıyı Kes
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -565,7 +625,7 @@ export const SettingsModal: React.FC = () => {
                     {copilotAuth.status === 'success' && (
                       <div className="p-2.5 bg-emerald-950/60 border border-emerald-700/60 rounded-lg flex items-center gap-2 text-[12px] text-emerald-300 font-medium">
                         <CheckCircle size={14} className="text-emerald-400" />
-                        <span>GitHub Copilot başarıyla yetkilendirildi! Token kaydedildi.</span>
+                        <span>GitHub Copilot başarıyla yetkilendirildi ve kaydedildi!</span>
                       </div>
                     )}
 
@@ -582,23 +642,67 @@ export const SettingsModal: React.FC = () => {
                       </div>
                     )}
 
+                    {copilotTestResult && (
+                      <div
+                        className={`p-2.5 rounded-lg flex items-center justify-between text-[12px] ${
+                          copilotTestResult.valid
+                            ? 'bg-emerald-950/60 border border-emerald-700/60 text-emerald-300'
+                            : 'bg-red-950/60 border border-red-700/60 text-red-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {copilotTestResult.valid ? (
+                            <CheckCircle size={14} className="text-emerald-400" />
+                          ) : (
+                            <AlertCircle size={14} className="text-red-400" />
+                          )}
+                          <span>
+                            {copilotTestResult.valid
+                              ? `Doğrulama Başarılı: ${copilotTestResult.user || 'Hesap aktif'} (Copilot modelleri kullanılabilir)`
+                              : `Hata: ${copilotTestResult.error}`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCopilotTestResult(null)}
+                          className="text-[10px] text-[#888888] hover:text-white ml-2"
+                        >
+                          Kapat
+                        </button>
+                      </div>
+                    )}
+
                     {/* Manuel Token Girişi */}
-                    <div className="pt-2 border-t border-purple-900/30">
-                      <label className="block text-[10.5px] text-[#717888] mb-1">
-                        Veya GitHub Token'ı doğrudan yapıştırın (gho_... / ghp_...):
+                    <div className="pt-2 border-t border-purple-900/30 space-y-2">
+                      <label className="block text-[10.5px] text-[#717888]">
+                        Veya GitHub Token'ı doğrudan yapıştırın (gho_... / ghp_... / Copilot token):
                       </label>
-                      <input
-                        type="password"
-                        value={formData.apiKeys.githubCopilot || ''}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            apiKeys: { ...formData.apiKeys, githubCopilot: e.target.value },
-                          })
-                        }
-                        placeholder="gho_... veya Copilot OAuth token"
-                        className="w-full bg-[#0d0f14] border border-[#232733] rounded-lg px-3 py-1.5 text-white text-[12px] focus:outline-none focus:border-purple-500/50"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="password"
+                          value={formData.apiKeys.githubCopilot || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              apiKeys: { ...formData.apiKeys, githubCopilot: e.target.value },
+                            })
+                          }
+                          onBlur={() => {
+                            if (formData.apiKeys.githubCopilot !== settings.apiKeys?.githubCopilot) {
+                              handleSaveManualCopilotToken(formData.apiKeys.githubCopilot || '');
+                            }
+                          }}
+                          placeholder="gho_... veya Copilot OAuth token"
+                          className="flex-1 bg-[#0d0f14] border border-[#232733] rounded-lg px-3 py-1.5 text-white text-[12px] focus:outline-none focus:border-purple-500/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveManualCopilotToken(formData.apiKeys.githubCopilot || '')}
+                          className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-[11.5px] font-medium transition-colors"
+                        >
+                          Kaydet & Doğrula
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -646,6 +750,9 @@ export const SettingsModal: React.FC = () => {
                               apiKeys: { ...formData.apiKeys, [k.id]: e.target.value },
                             })
                           }
+                          onBlur={() => {
+                            updateSettings(formData);
+                          }}
                           placeholder={k.placeholder}
                           className="w-full bg-[#0b0c10] border border-[#222634] rounded-lg px-3 py-1.5 text-white text-[12px] focus:outline-none focus:border-sky-500/50 transition-colors"
                         />

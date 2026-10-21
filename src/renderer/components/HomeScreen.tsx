@@ -41,6 +41,13 @@ interface ModelItem {
 const AVAILABLE_MODELS: ModelItem[] = [
   // 1. GitHub Copilot (OAuth & Device Auth)
   {
+    id: 'copilot/claude-3.7-sonnet',
+    name: 'Copilot Claude 3.7 Sonnet',
+    provider: 'GitHub Copilot',
+    tag: 'OAuth Pro',
+    category: 'copilot',
+  },
+  {
     id: 'copilot/claude-3.5-sonnet',
     name: 'Copilot Claude 3.5 Sonnet',
     provider: 'GitHub Copilot',
@@ -50,6 +57,13 @@ const AVAILABLE_MODELS: ModelItem[] = [
   {
     id: 'copilot/gpt-4o',
     name: 'Copilot GPT-4o',
+    provider: 'GitHub Copilot',
+    tag: 'OAuth Pro',
+    category: 'copilot',
+  },
+  {
+    id: 'copilot/o1',
+    name: 'Copilot o1 Reasoning',
     provider: 'GitHub Copilot',
     tag: 'OAuth Pro',
     category: 'copilot',
@@ -302,7 +316,9 @@ export const HomeScreen: React.FC = () => {
   } = useElythraStore();
 
   const apiKeys = settings?.apiKeys || {};
-  const hasAnyProvider = Object.entries(apiKeys).some(([_, val]) => {
+  const hasCopilot = !!apiKeys.githubCopilot?.trim();
+  const hasAnyProvider = hasCopilot || Object.entries(apiKeys).some(([k, val]) => {
+    if (k === 'customModel') return false;
     return typeof val === 'string' && val.trim().length > 0;
   });
 
@@ -311,6 +327,7 @@ export const HomeScreen: React.FC = () => {
       return !!apiKeys.githubCopilot?.trim();
     }
     if (m.category === 'zen' || m.provider === 'OpenCode Zen') {
+      if (m.id.includes('free')) return true;
       return !!(apiKeys.opencodeZen?.trim() || (apiKeys.customEndpoint && apiKeys.customEndpoint.includes('opencode.ai')));
     }
     if (m.provider === 'Cerebras Cloud' || m.id.startsWith('cerebras/')) {

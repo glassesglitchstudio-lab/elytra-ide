@@ -180,6 +180,11 @@ export interface ElythraAPI {
     access_token?: string;
     error?: string;
   }>;
+  copilotTestToken: (token?: string) => Promise<{
+    valid: boolean;
+    user?: string;
+    error?: string;
+  }>;
 
   // Web Search Tool
   webSearch: (query: string) => Promise<Array<{ title: string; link: string; snippet: string; source: string }>>;

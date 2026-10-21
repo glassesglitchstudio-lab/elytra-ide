@@ -68,6 +68,7 @@ const elythraAPI: ElythraAPI = {
   // OAuth & Device Auth
   copilotStartDeviceAuth: () => ipcRenderer.invoke('auth:copilotStartDevice'),
   copilotPollToken: (device_code: string) => ipcRenderer.invoke('auth:copilotPollToken', device_code),
+  copilotTestToken: (token?: string) => ipcRenderer.invoke('auth:copilotTestToken', token),
 
   // AI
   sendAIChat: (params) => ipcRenderer.invoke('ai:sendChat', params),

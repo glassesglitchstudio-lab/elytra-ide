@@ -603,8 +603,9 @@ function setupIpcHandlers() {
     return await multiSourceWebSearch(query);
   });
 
-  // GitHub Copilot Device Code OAuth Flow
-  const COPILOT_CLIENT_ID = 'Ov23li8tweQw6odWQebz';
+  // GitHub Copilot Official Device Code OAuth Flow
+  // Standard public Client ID utilized by official VS Code Copilot extension
+  const COPILOT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 
   ipcMain.handle('auth:copilotStartDevice', async () => {
     try {
@@ -613,7 +614,7 @@ function setupIpcHandlers() {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          'User-Agent': 'ElytraCode/1.0',
+          'User-Agent': 'GitHubCopilotChat/0.22.4',
         },
         body: JSON.stringify({
           client_id: COPILOT_CLIENT_ID,
@@ -621,7 +622,8 @@ function setupIpcHandlers() {
         }),
       });
       if (!res.ok) {
-        return { error: `Device auth request failed: ${res.statusText}` };
+        const errText = await res.text();
+        return { error: `Device auth request failed (${res.status}): ${errText}` };
       }
       const data = await res.json();
       return data;
@@ -637,7 +639,7 @@ function setupIpcHandlers() {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          'User-Agent': 'ElytraCode/1.0',
+          'User-Agent': 'GitHubCopilotChat/0.22.4',
         },
         body: JSON.stringify({
           client_id: COPILOT_CLIENT_ID,
@@ -648,7 +650,19 @@ function setupIpcHandlers() {
       if (!res.ok) {
         return { error: `Poll failed: ${res.statusText}` };
       }
-      const data = await res.json();
+      const data: any = await res.json();
+      // If access_token was obtained, automatically persist to settings.json immediately!
+      if (data.access_token) {
+        try {
+          const currentSettings = readJsonFile(SETTINGS_FILE, defaultSettings);
+          currentSettings.apiKeys = currentSettings.apiKeys || {};
+          currentSettings.apiKeys.githubCopilot = data.access_token.trim();
+          writeJsonFile(SETTINGS_FILE, currentSettings);
+          console.log('[Auth] GitHub Copilot access token auto-saved to settings.json');
+        } catch (saveErr) {
+          console.error('[Auth] Failed to auto-save copilot token:', saveErr);
+        }
+      }
       return data;
     } catch (err: any) {
       return { error: err.message || 'Poll token failed' };
@@ -656,44 +670,138 @@ function setupIpcHandlers() {
   });
 
   // GitHub Copilot Session Token Cache & Auto-Exchanger
-  let copilotSessionTokenCache: { token: string; expires_at: number } | null = null;
+  let copilotSessionTokenCache: { token: string; expires_at: number; host: string } | null = null;
 
-  async function getCopilotSessionToken(githubToken: string): Promise<string> {
+  async function getCopilotSessionToken(githubToken: string): Promise<{ token: string; host?: string; error?: string }> {
+    const raw = (githubToken || '').trim();
+    if (!raw) return { token: '', error: 'GitHub Copilot token bulunamadı.' };
+
     const now = Math.floor(Date.now() / 1000);
     if (copilotSessionTokenCache && copilotSessionTokenCache.expires_at > now + 60) {
-      return copilotSessionTokenCache.token;
+      return { token: copilotSessionTokenCache.token, host: copilotSessionTokenCache.host };
     }
+
     // If user already pasted a raw Copilot session token (contains tid= or ;exp=)
-    if (githubToken.startsWith('tid=') || githubToken.includes(';exp=')) {
-      return githubToken;
+    if (raw.startsWith('tid=') || raw.includes(';exp=')) {
+      return { token: raw, host: 'https://api.githubcopilot.com' };
     }
+
     // Exchange ghu_ / gho_ token via GitHub Copilot internal endpoint
+    // 1. Try 'token <raw>'
     try {
-      const res = await fetch('https://api.github.com/copilot_internal/v2/token', {
+      let res = await fetch('https://api.github.com/copilot_internal/v2/token', {
         method: 'GET',
         headers: {
-          Authorization: `token ${githubToken.trim()}`,
+          Authorization: `token ${raw}`,
           Accept: 'application/json',
-          'Editor-Version': 'vscode/1.90.0',
-          'Editor-Plugin-Version': 'copilot-chat/0.17.0',
-          'User-Agent': 'GitHubCopilotChat/0.17.0',
+          'Editor-Version': 'vscode/1.95.3',
+          'Editor-Plugin-Version': 'copilot-chat/0.22.4',
+          'User-Agent': 'GitHubCopilotChat/0.22.4',
         },
       });
+
+      // 2. If 401, try 'Bearer <raw>'
+      if (res.status === 401) {
+        res = await fetch('https://api.github.com/copilot_internal/v2/token', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${raw}`,
+            Accept: 'application/json',
+            'Editor-Version': 'vscode/1.95.3',
+            'Editor-Plugin-Version': 'copilot-chat/0.22.4',
+            'User-Agent': 'GitHubCopilotChat/0.22.4',
+          },
+        });
+      }
+
       if (res.ok) {
         const data: any = await res.json();
         if (data.token) {
+          const host = data.endpoints?.api || 'https://api.githubcopilot.com';
           copilotSessionTokenCache = {
             token: data.token,
             expires_at: data.expires_at || (now + 1800),
+            host,
           };
-          return data.token;
+          return { token: data.token, host };
+        }
+      } else {
+        const errText = await res.text();
+        console.error('Copilot internal token exchange failed:', res.status, errText);
+        if (res.status === 403 || res.status === 404) {
+          return {
+            token: '',
+            error: `GitHub hesabınızda aktif bir GitHub Copilot aboneliği bulunamadı (${res.status}). Lütfen github.com üzerinde Copilot planınızın aktif olduğundan emin olun.`,
+          };
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Copilot session token exchange error:', e);
     }
-    return githubToken.trim();
+
+    // Fallback directly with raw token
+    return { token: raw, host: 'https://api.githubcopilot.com' };
   }
+
+  // Token Test Endpoint for Frontend Verification
+  ipcMain.handle('auth:copilotTestToken', async (_, tokenOverride?: string) => {
+    try {
+      const settings = readJsonFile(SETTINGS_FILE, defaultSettings);
+      const token = (tokenOverride || settings.apiKeys?.githubCopilot || '').trim();
+      if (!token) {
+        return { valid: false, error: 'Kayıtlı GitHub Copilot tokenı bulunamadı.' };
+      }
+
+      // Check GitHub user identity
+      let username = '';
+      try {
+        const uRes = await fetch('https://api.github.com/user', {
+          headers: {
+            Authorization: `token ${token}`,
+            'User-Agent': 'GitHubCopilotChat/0.22.4',
+            Accept: 'application/json',
+          },
+        });
+        if (uRes.ok) {
+          const uData: any = await uRes.json();
+          username = uData.login || uData.name || '';
+        }
+      } catch (_) {}
+
+      // Test Copilot internal token exchange
+      const session = await getCopilotSessionToken(token);
+      if (session.error) {
+        return { valid: false, error: session.error, user: username };
+      }
+      if (!session.token) {
+        return { valid: false, error: 'Copilot oturum anahtarı alınamadı.', user: username };
+      }
+
+      // Test Copilot API ping
+      const pingRes = await fetch(`${session.host || 'https://api.githubcopilot.com'}/models`, {
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Editor-Version': 'vscode/1.95.3',
+          'Editor-Plugin-Version': 'copilot-chat/0.22.4',
+          'User-Agent': 'GitHubCopilotChat/0.22.4',
+          'Copilot-Integration-Id': 'vscode-chat',
+        },
+      });
+
+      if (pingRes.ok) {
+        return { valid: true, user: username || 'GitHub Kullanıcısı' };
+      } else {
+        const errText = await pingRes.text();
+        return {
+          valid: false,
+          error: `Copilot API yetkilendirme yanıt vermedi (HTTP ${pingRes.status}: ${errText.slice(0, 80)})`,
+          user: username,
+        };
+      }
+    } catch (err: any) {
+      return { valid: false, error: err.message || 'Token testi sırasında bağlantı hatası oluştu.' };
+    }
+  });
 
   // AI Chat Request Handler (Full BYOK + Smart Local Autonomous Reasoning Engine)
   ipcMain.handle('ai:sendChat', async (event, params) => {
@@ -826,19 +934,29 @@ function setupIpcHandlers() {
         sendChunk({ done: true });
         return null;
       }
-      const copilotSessionToken = await getCopilotSessionToken(keys.githubCopilot);
-      endpoint = 'https://api.githubcopilot.com/chat/completions';
-      headers['Authorization'] = `Bearer ${copilotSessionToken}`;
-      headers['Editor-Version'] = 'vscode/1.90.0';
-      headers['Editor-Plugin-Version'] = 'copilot-chat/0.17.0';
+      const copilotSession = await getCopilotSessionToken(keys.githubCopilot);
+      if (copilotSession.error) {
+        sendChunk({ error: `[GitHub Copilot Yetkilendirme Hatası]: ${copilotSession.error}` });
+        sendChunk({ done: true });
+        return null;
+      }
+      endpoint = `${copilotSession.host || 'https://api.githubcopilot.com'}/chat/completions`;
+      headers['Authorization'] = `Bearer ${copilotSession.token}`;
+      headers['Editor-Version'] = 'vscode/1.95.3';
+      headers['Editor-Plugin-Version'] = 'copilot-chat/0.22.4';
+      headers['User-Agent'] = 'GitHubCopilotChat/0.22.4';
       headers['Copilot-Integration-Id'] = 'vscode-chat';
       headers['Openai-Intent'] = 'conversation-edits';
 
       let copilotModel = targetModel.replace('copilot/', '');
       if (copilotModel === 'copilot' || !copilotModel || copilotModel.includes('3.5-sonnet')) {
         copilotModel = 'claude-3.5-sonnet';
+      } else if (copilotModel.includes('3.7-sonnet')) {
+        copilotModel = 'claude-3.7-sonnet';
       } else if (copilotModel.includes('gpt-4o')) {
         copilotModel = 'gpt-4o';
+      } else if (copilotModel.includes('o1')) {
+        copilotModel = 'o1';
       }
       body = {
         model: copilotModel,
@@ -1051,9 +1169,10 @@ function setupIpcHandlers() {
       }
     } else if (model.includes('Gemini') || targetModel.startsWith('google/')) {
       // 2.13 Google Gemini (Direct or OpenRouter fallback)
-      if (keys.gemini && typeof keys.gemini === 'string' && keys.gemini.startsWith('AIzaSy')) {
+      const geminiKey = (keys.gemini || '').trim();
+      if (geminiKey.length > 5) {
         const geminiModel = 'gemini-2.0-flash';
-        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${keys.gemini}&alt=sse`;
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?key=${geminiKey}&alt=sse`;
         body = {
           contents: sanitizedMessages.map((m: any) => ({
             role: m.role === 'user' ? 'user' : 'model',
