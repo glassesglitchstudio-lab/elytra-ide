@@ -939,6 +939,7 @@ function setupIpcHandlers() {
       'gemini-3.8-flash': 'nvidia/nemotron-3.5-lightning:free',
     };
 
+    const targetModel = MODEL_ID_MAP[model] || model;
     const sysPrompt = settings.systemInstructions ||
       'You are Elythra Code, an expert autonomous AI software engineer.\n' +
       'KURAL: Herhangi bir araç, araştırma mekanizması veya işlem çalıştırdığında veya kullanıcı bir araç talep ettiğinde, yanıtının EN BAŞINDA mutlaka "Tools: <Kullanılan Araç Adı> - <Hedef / Açıklama>" satırını yazarak başla.\n' +
