@@ -6,6 +6,7 @@ import {
   GitBranch,
   Zap,
   Sliders,
+  Blocks,
   History,
   Settings,
 } from 'lucide-react';
@@ -55,6 +56,7 @@ export const ActivityBar: React.FC = () => {
     },
     { id: 'automations', label: 'Automations', icon: Zap },
     { id: 'customizations', label: 'Customizations & Rules', icon: Sliders },
+    { id: 'plugins', label: 'Plugins & Marketplace', icon: Blocks },
   ];
 
   return (

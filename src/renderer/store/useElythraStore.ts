@@ -26,6 +26,7 @@ export type SidebarTabType =
   | 'git'
   | 'automations'
   | 'customizations'
+  | 'plugins'
   | 'history';
 
 export type ActiveViewType = 'studio' | 'editor';

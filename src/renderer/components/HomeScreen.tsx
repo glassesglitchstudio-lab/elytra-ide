@@ -23,6 +23,7 @@ import {
   Undo2,
   Copy,
   Search,
+  Globe,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -233,6 +234,7 @@ const PERMISSION_MODES: { id: PermissionMode; label: string; desc: string }[] = 
 ];
 
 const SLASH_COMMANDS = [
+  { cmd: '/search', desc: 'Canlı Web & Teknik Dokümantasyon Araması Yap (HN, GitHub, Wikipedia)', icon: Globe },
   { cmd: '/explain', desc: 'Kod mimarisini ve çalışma prensiplerini açıkla', icon: Sparkles },
   { cmd: '/fix', desc: 'Çalışma zamanı ve linter hatalarını bulup onar', icon: Terminal },
   { cmd: '/test', desc: 'Kapsamlı birim test senaryoları yaz', icon: FileCode },
@@ -396,11 +398,13 @@ export const HomeScreen: React.FC = () => {
 
   const mentionQuery = (input.split('@').pop() || '').toLowerCase().trim();
   const flatProjectFiles = flattenFiles(fileTree || []);
+  const isWebMatching = !mentionQuery || 'web'.includes(mentionQuery) || 'internet'.includes(mentionQuery);
   const mentionCandidates = [
-    ...(openTabs || []).map((t) => ({ name: t.name, path: t.path, isTab: true })),
-    ...flatProjectFiles.filter((f) => !(openTabs || []).some((t) => t.path === f.path)),
+    ...(isWebMatching ? [{ name: 'web', path: '@web', isWeb: true, isTab: false }] : []),
+    ...(openTabs || []).map((t) => ({ name: t.name, path: t.path, isTab: true, isWeb: false })),
+    ...flatProjectFiles.filter((f) => !(openTabs || []).some((t) => t.path === f.path)).map((f) => ({ ...f, isTab: false, isWeb: false })),
   ]
-    .filter((f) => !mentionQuery || f.name.toLowerCase().includes(mentionQuery) || f.path.toLowerCase().includes(mentionQuery))
+    .filter((f) => f.isWeb || !mentionQuery || f.name.toLowerCase().includes(mentionQuery) || f.path.toLowerCase().includes(mentionQuery))
     .slice(0, 8);
 
   const handleSelectMention = (fileName: string) => {
@@ -668,9 +672,18 @@ export const HomeScreen: React.FC = () => {
                 className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#222634] transition-colors flex items-center justify-between text-[#e5e5e5]"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <FileCode size={13} className={f.isTab ? 'text-sky-400' : 'text-[#888888]'} />
+                  {f.isWeb ? (
+                    <Globe size={13} className="text-emerald-400" />
+                  ) : (
+                    <FileCode size={13} className={f.isTab ? 'text-sky-400' : 'text-[#888888]'} />
+                  )}
                   <span className="font-medium truncate">{f.name}</span>
                 </div>
+                {f.isWeb && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                    Canlı Web
+                  </span>
+                )}
                 {f.isTab && (
                   <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40">
                     Açık Sekme

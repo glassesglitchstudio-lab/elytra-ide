@@ -6,6 +6,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { IdeWorkspace } from './components/IdeWorkspace';
 import { AutomationsView } from './components/AutomationsView';
 import { CustomizationsView } from './components/CustomizationsView';
+import { PluginsMarketplaceView } from './components/PluginsMarketplaceView';
 import { HistoryView } from './components/HistoryView';
 import { SettingsModal } from './components/SettingsModal';
 import { CommandPalette } from './components/CommandPalette';
@@ -73,6 +74,9 @@ export const App: React.FC = () => {
     }
     if (sidebarTab === 'customizations') {
       return <CustomizationsView />;
+    }
+    if (sidebarTab === 'plugins') {
+      return <PluginsMarketplaceView />;
     }
 
     if (activeView === 'editor') {

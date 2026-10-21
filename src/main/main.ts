@@ -18,13 +18,23 @@ const AUTOMATIONS_FILE = path.join(USER_DATA, 'elythra-automations.json');
 // Default Settings
 const defaultSettings: ElythraSettings = {
   apiKeys: {},
-  defaultModel: 'Gemini 3.8 Flash',
+  defaultModel: 'Nemotron 3.5 Lightning',
   thinkingLevel: 'High',
   fontSize: 14,
   fontFamily: 'Inter',
   autoSave: true,
   terminalShell: process.platform === 'win32' ? 'powershell.exe' : 'bash',
   systemInstructions: 'You are Elythra Code, an expert software engineer and autonomous AI pair programmer.',
+  installedPlugins: {
+    'plugin-web-search': true,
+    'plugin-git-butler': true,
+    'plugin-ue5-helper': true,
+    'plugin-pkg-inspector': true,
+    'plugin-test-generator': true,
+    'plugin-design-tokens': true,
+    'plugin-docker-architect': true,
+    'plugin-python-runner': true,
+  },
 };
 
 function readJsonFile<T>(filePath: string, fallback: T): T {
@@ -523,6 +533,76 @@ function setupIpcHandlers() {
     }
   });
 
+  // Live Multi-Source Web Search Engine (HackerNews, GitHub Repos, Tech Encyclopedia)
+  async function multiSourceWebSearch(query: string): Promise<Array<{ title: string; link: string; snippet: string; source: string }>> {
+    const cleanQuery = query.replace(/^(\/search|@web)\s*/i, '').trim();
+    if (!cleanQuery) return [];
+    const results: Array<{ title: string; link: string; snippet: string; source: string }> = [];
+
+    // 1. Hacker News Developer Web & Articles
+    try {
+      const hnRes = await fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(cleanQuery)}&hitsPerPage=3`);
+      if (hnRes.ok) {
+        const hnData: any = await hnRes.json();
+        for (const hit of hnData.hits || []) {
+          if (hit.title && (hit.url || hit.story_url)) {
+            results.push({
+              title: hit.title,
+              link: hit.url || hit.story_url,
+              snippet: hit.comment_text ? hit.comment_text.replace(/<[^>]+>/g, '').slice(0, 160) : `Tech discussion & source with ${hit.points || 0} upvotes.`,
+              source: 'Tech Web',
+            });
+          }
+        }
+      }
+    } catch {}
+
+    // 2. GitHub Code & Open Source Repositories
+    try {
+      const ghRes = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(cleanQuery)}&per_page=3`, {
+        headers: { 'User-Agent': 'ElytraCode/1.0' },
+      });
+      if (ghRes.ok) {
+        const ghData: any = await ghRes.json();
+        for (const item of ghData.items || []) {
+          results.push({
+            title: `${item.full_name}: ${item.description || 'GitHub Project'}`,
+            link: item.html_url,
+            snippet: `⭐ ${item.stargazers_count} stars | Language: ${item.language || 'Code'} | Updated: ${item.updated_at?.slice(0, 10)}`,
+            source: 'GitHub Code',
+          });
+        }
+      }
+    } catch {}
+
+    // 3. Technical Wikipedia Encyclopedia
+    try {
+      const wikiRes = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(cleanQuery)}&limit=2&namespace=0&format=json`);
+      if (wikiRes.ok) {
+        const wikiData: any = await wikiRes.json();
+        const titles = wikiData[1] || [];
+        const descs = wikiData[2] || [];
+        const links = wikiData[3] || [];
+        for (let i = 0; i < titles.length; i++) {
+          if (titles[i] && links[i]) {
+            results.push({
+              title: titles[i],
+              link: links[i],
+              snippet: descs[i] || 'Technical documentation reference.',
+              source: 'Documentation',
+            });
+          }
+        }
+      }
+    } catch {}
+
+    return results;
+  }
+
+  ipcMain.handle('tools:webSearch', async (_, query: string) => {
+    return await multiSourceWebSearch(query);
+  });
+
   // GitHub Copilot Device Code OAuth Flow
   const COPILOT_CLIENT_ID = 'Ov23li8tweQw6odWQebz';
 
@@ -636,6 +716,28 @@ function setupIpcHandlers() {
       } catch {}
     };
 
+    // Live Web Research check (/search, @web, or research intent)
+    const isWebSearchRequested = lastUserMessage.startsWith('/search') || lastUserMessage.includes('@web');
+    let webContextStr = '';
+    if (isWebSearchRequested) {
+      const cleanSearchQuery = lastUserMessage.replace(/^(\/search|@web)\s*/i, '').trim();
+      if (cleanSearchQuery) {
+        sendChunk({ chunk: `🌐 [Web Araştırması: "${cleanSearchQuery}"]\n` });
+        try {
+          const webItems = await multiSourceWebSearch(cleanSearchQuery);
+          if (webItems.length > 0) {
+            webContextStr = `\n\n[Canlı Web Araştırması Sonuçları - "${cleanSearchQuery}"]:\n` +
+              webItems.map((item, idx) => `${idx + 1}. **${item.title}**\nKaynak Link: ${item.link}\nÖzet: ${item.snippet} (${item.source})`).join('\n\n') +
+              `\n\n(Yukarıdaki güncel web kaynaklarını referans göstererek kullanıcının sorusunu yanıtla.)\n`;
+
+            sendChunk({ chunk: `> ${webItems.length} kaynak incelendi (GitHub, Tech Web, Dökümanlar).\n\n` });
+          }
+        } catch (err) {
+          console.error('Web search execution failed:', err);
+        }
+      }
+    }
+
     // 1. Sanitize messages for multi-turn conversations & model changes
     // Prevents 400 Bad Request on provider switches (enforces alternating roles, filters error cards, removes empty msgs)
     const sanitizedMessages: { role: string; content: string }[] = [];
@@ -665,6 +767,9 @@ function setupIpcHandlers() {
     }
     if (sanitizedMessages.length === 0) {
       sanitizedMessages.push({ role: 'user', content: lastUserMessage || 'Merhaba' });
+    }
+    if (webContextStr && sanitizedMessages.length > 0) {
+      sanitizedMessages[sanitizedMessages.length - 1].content += webContextStr;
     }
 
     let endpoint = '';

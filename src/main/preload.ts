@@ -50,6 +50,7 @@ const elythraAPI: ElythraAPI = {
 
   // Search
   searchInFiles: (cwd: string, query: string, isRegex = false) => ipcRenderer.invoke('search:inFiles', cwd, query, isRegex),
+  webSearch: (query: string) => ipcRenderer.invoke('tools:webSearch', query),
 
   // Storage
   getSettings: () => ipcRenderer.invoke('storage:getSettings'),

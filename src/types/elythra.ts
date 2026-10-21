@@ -99,6 +99,8 @@ export interface ElythraSettings {
   autoSave: boolean;
   terminalShell: string;
   systemInstructions: string;
+  installedPlugins?: Record<string, boolean>;
+  pluginSettings?: Record<string, any>;
 }
 
 export interface GitStatus {
@@ -178,6 +180,9 @@ export interface ElythraAPI {
     access_token?: string;
     error?: string;
   }>;
+
+  // Web Search Tool
+  webSearch: (query: string) => Promise<Array<{ title: string; link: string; snippet: string; source: string }>>;
 
   // AI Stream
   sendAIChat: (params: {

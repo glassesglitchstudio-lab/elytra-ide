@@ -527,6 +527,17 @@ export const Sidebar: React.FC = () => {
           </p>
         </div>
       )}
+
+      {sidebarTab === 'plugins' && (
+        <div className="flex-1 p-3 text-[12px] text-[#888888]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
+            Plugins Marketplace
+          </span>
+          <p className="mt-2 text-[11px] text-[#666666] leading-relaxed">
+            Eklenti pazarından gerçek zamanlı Web Araştırması, Git Otomasyonu, UE5 C++ Asistanı ve Paket Güvenlik Denetçisi eklentilerini yönetin ve kullanın.
+          </p>
+        </div>
+      )}
     </aside>
   );
 };
