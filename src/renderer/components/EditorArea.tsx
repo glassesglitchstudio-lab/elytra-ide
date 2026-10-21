@@ -435,7 +435,7 @@ CRITICAL RULES:
                 title="Değişiklikleri iptal et ve önceki haline döndür"
               >
                 <Undo2 size={13} />
-                <span>Geri Al (Reject)</span>
+                <span>Decline (Geri Al)</span>
               </button>
 
               <button
@@ -444,7 +444,7 @@ CRITICAL RULES:
                 title="Değişiklikleri onayla ve diske kaydet"
               >
                 <Check size={13} strokeWidth={2.5} />
-                <span>Kabul Et & Kaydet (Accept)</span>
+                <span>Accept (Kabul Et)</span>
               </button>
             </div>
           </div>

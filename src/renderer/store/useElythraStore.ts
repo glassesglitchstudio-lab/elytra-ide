@@ -542,44 +542,58 @@ export const useElythraStore = create<ElythraStore>((set, get) => ({
           original,
           modified: code,
         },
-        activeView: 'editor',
       });
 
       get().updateTabContent(activeTabPath, code);
       return;
     }
 
-    // No tab open: create scratch file or active snippet
+    // No tab open: create scratch tab without forcing view away from studio/chat
     const ext = lang === 'python' ? 'py' : lang === 'json' ? 'json' : lang === 'html' ? 'html' : 'tsx';
     const scratchName = `snippet-${Date.now().toString().slice(-4)}.${ext}`;
     const scratchPath = activeProject ? `${activeProject.path}/${scratchName}` : scratchName;
 
-    if (window.elythraAPI && activeProject) {
-      await window.elythraAPI.writeFile(scratchPath, code);
-      await get().openFileTab(scratchPath);
-    } else {
-      const newTab: EditorTab = {
+    const newTab: EditorTab = {
+      path: scratchPath,
+      name: scratchName,
+      content: code,
+      isDirty: true,
+      language: lang,
+    };
+
+    set({
+      openTabs: [...openTabs, newTab],
+      activeTabPath: scratchPath,
+      activeDiff: {
         path: scratchPath,
         name: scratchName,
-        content: code,
-        isDirty: false,
-        language: lang,
-      };
-      set({ openTabs: [newTab], activeTabPath: scratchPath, activeView: 'editor' });
-    }
+        original: '',
+        modified: code,
+      },
+    });
   },
 
   acceptDiff: async () => {
-    const { activeDiff } = get();
+    const { activeDiff, openTabs } = get();
     if (!activeDiff) return;
-    await get().saveActiveTab();
+    const tab = openTabs.find((t) => t.path === activeDiff.path);
+    if (tab && window.elythraAPI) {
+      await window.elythraAPI.writeFile(tab.path, tab.content);
+      set((s) => ({
+        openTabs: s.openTabs.map((t) => (t.path === activeDiff.path ? { ...t, isDirty: false } : t)),
+      }));
+    }
     set({ activeDiff: null });
   },
 
   rejectDiff: () => {
     const { activeDiff } = get();
     if (!activeDiff) return;
-    get().updateTabContent(activeDiff.path, activeDiff.original);
+    if (activeDiff.original === '') {
+      get().closeFileTab(activeDiff.path);
+    } else {
+      get().updateTabContent(activeDiff.path, activeDiff.original);
+    }
     set({ activeDiff: null });
   },
 

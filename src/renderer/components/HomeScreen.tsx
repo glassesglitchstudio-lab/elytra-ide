@@ -20,6 +20,7 @@ import {
   Key,
   AlertCircle,
   Settings,
+  Undo2,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -181,6 +182,10 @@ export const HomeScreen: React.FC = () => {
     setActiveModal,
     openTabs,
     fileTree,
+    activeDiff,
+    acceptDiff,
+    rejectDiff,
+    setActiveView,
   } = useElythraStore();
 
   const apiKeys = settings?.apiKeys || {};
@@ -361,6 +366,64 @@ export const HomeScreen: React.FC = () => {
     } catch {
       setIsListening(false);
     }
+  };
+
+  // Floating Review Bar (Cursor / Antigravity Style Accept & Decline)
+  const renderDiffBar = () => {
+    if (!activeDiff) return null;
+
+    return (
+      <div className="mb-3 px-3.5 py-2.5 rounded-xl bg-[#131620]/95 border border-sky-500/40 backdrop-blur-md shadow-2xl flex items-center justify-between gap-3 animate-fadeIn select-none">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 flex-shrink-0">
+            <FileCode size={16} />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-400 rounded-full border-2 border-[#131620] animate-pulse" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[12.5px] font-semibold text-white truncate">
+                Elytra AI Değişiklik Uyguladı
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950/70 text-sky-300 border border-sky-800/40 truncate max-w-[200px]">
+                {activeDiff.name}
+              </span>
+            </div>
+            <span className="text-[11px] text-[#9ca3af] truncate">
+              Değişiklikleri diske kaydetmek için Accept'e, vazgeçmek için Decline'a tıklayın.
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => setActiveView('editor')}
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11.5px] text-sky-400 hover:text-sky-300 hover:bg-sky-950/40 border border-sky-900/40 transition-colors"
+            title="Editörde Aç ve İncele"
+          >
+            <Code2 size={12} />
+            <span>Editörde Gör</span>
+          </button>
+
+          <button
+            onClick={rejectDiff}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-red-400 bg-red-950/40 hover:bg-red-950/70 border border-red-800/40 transition-colors shadow-sm"
+            title="Değişiklikleri iptal et ve önceki haline döndür"
+          >
+            <Undo2 size={13} />
+            <span>Decline (Geri Al)</span>
+          </button>
+
+          <button
+            onClick={acceptDiff}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium text-white bg-emerald-600 hover:bg-emerald-500 shadow-md transition-colors"
+            title="Değişiklikleri onayla ve diske kaydet"
+          >
+            <Check size={13} strokeWidth={2.5} />
+            <span>Accept (Kabul Et)</span>
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // Reusable Unified Prompt Capsule (Antigravity Center & Bottom)
@@ -802,7 +865,8 @@ export const HomeScreen: React.FC = () => {
               Otonom yapay zeka kodlama stüdyosu. Mimariyi planlayın, tam teşekküllü kod yazın veya hata ayıklayın.
             </p>
 
-            {/* Prompt Capsule in Center */}
+            {/* Prompt Capsule in Center with Diff Review Bar */}
+            {renderDiffBar()}
             {renderPromptCapsule()}
 
             {/* 4 Quick Action Cards (2x2 Grid) */}
@@ -919,6 +983,7 @@ export const HomeScreen: React.FC = () => {
 
           {/* Bottom Fixed Prompt Capsule */}
           <div className="p-3 bg-[#0c0e12]/95 backdrop-blur-md border-t border-[#1c202a]">
+            {renderDiffBar()}
             {renderPromptCapsule()}
           </div>
         </div>

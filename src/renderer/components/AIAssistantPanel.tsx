@@ -8,6 +8,9 @@ import {
   Shield,
   FolderOpen,
   Plus,
+  FileCode,
+  Check,
+  Undo2,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -29,6 +32,9 @@ export const AIAssistantPanel: React.FC = () => {
     permissionMode,
     setPermissionMode,
     startNewConversation,
+    activeDiff,
+    acceptDiff,
+    rejectDiff,
   } = useElythraStore();
 
   const [input, setInput] = useState('');
@@ -160,8 +166,46 @@ export const AIAssistantPanel: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Capsule Input Area */}
+      {/* Capsule Input Area with Diff Review Bar */}
       <div className="p-2.5 border-t border-[#1c1c1c] bg-[#0a0a0a] select-none">
+        {activeDiff && (
+          <div className="mb-2 p-2.5 rounded-xl bg-[#141721] border border-sky-500/40 flex items-center justify-between gap-2 shadow-lg animate-fadeIn">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="relative flex items-center justify-center w-6 h-6 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-400 flex-shrink-0">
+                <FileCode size={13} />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-sky-400 rounded-full border border-[#141721] animate-pulse" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11.5px] font-semibold text-white truncate">
+                  {activeDiff.name}
+                </span>
+                <span className="text-[10px] text-[#9ca3af] truncate">
+                  Değişiklik yapıldı
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={rejectDiff}
+                className="px-2 py-1 rounded text-[11px] font-medium text-red-400 bg-red-950/40 hover:bg-red-950/70 border border-red-800/40 transition-colors flex items-center gap-1"
+                title="Decline"
+              >
+                <Undo2 size={11} />
+                <span>Decline</span>
+              </button>
+              <button
+                onClick={acceptDiff}
+                className="px-2.5 py-1 rounded text-[11px] font-medium text-white bg-emerald-600 hover:bg-emerald-500 shadow-sm transition-colors flex items-center gap-1"
+                title="Accept"
+              >
+                <Check size={11} strokeWidth={2.5} />
+                <span>Accept</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-[#141414] border border-[#242424] focus-within:border-[#383838] focus-within:ring-1 focus-within:ring-white/10 rounded-xl p-2.5 shadow-lg transition-all">
           <textarea
             ref={textareaRef}
