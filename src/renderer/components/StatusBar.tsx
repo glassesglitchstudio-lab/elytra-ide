@@ -47,9 +47,9 @@ export const StatusBar: React.FC = () => {
           </>
         )}
 
-        <div className="flex items-center gap-1 text-sky-400 font-mono px-2 py-0.2 rounded-full bg-[#0e121c] border border-[#1b2234]">
-          <Shield size={10} className="text-sky-400" />
-          <span className="text-[10px]">GC Shield</span>
+        <div className="flex items-center gap-1 text-emerald-400 font-mono px-2 py-0.2 rounded-full bg-[#0e121c] border border-[#1b2234]">
+          <Shield size={10} className="text-emerald-400" />
+          <span className="text-[10px]">Shield: Active</span>
         </div>
 
         <div className="flex items-center gap-1.5 text-[#cbd5e1] font-medium">

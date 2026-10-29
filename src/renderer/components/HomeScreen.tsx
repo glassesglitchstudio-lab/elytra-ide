@@ -40,29 +40,6 @@ interface ModelItem {
 }
 
 const AVAILABLE_MODELS: ModelItem[] = [
-  // 0. Elytra Studio AGI Serisi (0.1-Pro OXYGEN, 0.5-Pro, 1.0-Pro CARBON)
-  {
-    id: 'elytra/0.1-pro-oxygen',
-    name: 'Elytra 0.1-Pro OXYGEN',
-    provider: 'Elytra Studio',
-    tag: 'AGI Core (DPO-72B)',
-    category: 'pro',
-  },
-  {
-    id: 'elytra/0.5-pro-oxygen',
-    name: 'Elytra 0.5-Pro OXYGEN',
-    provider: 'Elytra Studio',
-    tag: 'AGI Native',
-    category: 'pro',
-  },
-  {
-    id: 'elytra/1.0-pro-carbon',
-    name: 'Elytra 1.0-Pro CARBON 💎',
-    provider: 'Elytra Studio',
-    tag: 'AGI Flagship',
-    category: 'pro',
-  },
-
   // 1. GitHub Copilot (OAuth & Device Auth)
   {
     id: 'copilot/claude-3.7-sonnet',
@@ -347,7 +324,6 @@ export const HomeScreen: React.FC = () => {
   });
 
   const isModelSupported = (m: ModelItem) => {
-    if (m.provider === 'Elytra Studio') return true;
     if (m.category === 'copilot' || m.provider === 'GitHub Copilot') {
       return !!apiKeys.githubCopilot?.trim();
     }
@@ -384,13 +360,12 @@ export const HomeScreen: React.FC = () => {
     return false;
   };
 
-  const elytraModels = AVAILABLE_MODELS.filter((m) => m.provider === 'Elytra Studio');
   const copilotModels = AVAILABLE_MODELS.filter((m) => m.category === 'copilot' && isModelSupported(m));
   const zenModels = AVAILABLE_MODELS.filter((m) => m.category === 'zen' && isModelSupported(m));
   const freeModels = AVAILABLE_MODELS.filter((m) => m.category === 'free' && isModelSupported(m));
   const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
-  const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && m.provider !== 'Elytra Studio' && isModelSupported(m));
-  const allAvailableModels = [...elytraModels, ...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
+  const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
+  const allAvailableModels = [...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
 
   const [modelSearch, setModelSearch] = useState('');
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
@@ -798,40 +773,6 @@ export const HomeScreen: React.FC = () => {
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
-                    {/* Category 0: Elytra Studio AGI Serisi */}
-                    {filterBySearch(elytraModels).length > 0 && (
-                      <div>
-                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-sky-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1628]">
-                          <span>💎 Elytra Studio AGI Serisi</span>
-                          <span className="text-[9px] bg-sky-950/80 text-sky-300 border border-sky-800/40 px-1 rounded">Resmi AGI</span>
-                        </div>
-                        {filterBySearch(elytraModels).map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => {
-                              setSelectedModel(m.name);
-                              setShowModelDropdown(false);
-                              setModelSearch('');
-                            }}
-                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#162038] transition-colors flex items-center justify-between ${
-                              selectedModel === m.name ? 'bg-[#162038] text-white font-medium border-l-2 border-sky-400' : 'text-[#cbd5e1]'
-                            }`}
-                          >
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate">{m.name}</span>
-                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#101b30] text-sky-300 border border-sky-800/30">
-                                {m.tag}
-                              </span>
-                              {selectedModel === m.name && <Check size={13} className="text-sky-400" />}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
                     {/* Category 1: GitHub Copilot OAuth */}
                     {filterBySearch(copilotModels).length > 0 && (
                       <div>
@@ -1148,7 +1089,7 @@ export const HomeScreen: React.FC = () => {
               <span>·</span>
               <span>Multi-Model AI Engine</span>
               <span>·</span>
-              <span>GC Shield Protected</span>
+              <span>Secure Sandbox Protected</span>
               <span>·</span>
               <span className="text-emerald-400 font-medium">Autonomous Studio</span>
             </div>
