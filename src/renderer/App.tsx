@@ -92,20 +92,20 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0a0a0a] overflow-hidden select-none">
-      {/* 1. Antigravity Top Title Bar (40px) */}
+    <div className="h-screen w-screen flex flex-col bg-[#08090d] text-[#e2e8f0] overflow-hidden select-none">
+      {/* 1. Elytra Integrated Title Bar (40px) */}
       <TitleBar />
 
       {/* 2. Main Workbench Surface */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Antigravity Left Activity Bar (48px) */}
+        {/* Elytra Left Activity Bar (48px) */}
         <ActivityBar />
 
         {/* Primary Collapsible Sidebar (280px) */}
         {isSidebarOpen && <Sidebar />}
 
-        {/* Central Stage: Antigravity Studio OR Monaco IDE Workspace */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#0e0e0e]">
+        {/* Central Stage: Elytra AI Studio OR Monaco IDE Workspace */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#0b0d14]">
           {renderMainContent()}
         </div>
       </div>

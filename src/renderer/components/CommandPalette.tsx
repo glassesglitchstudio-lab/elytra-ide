@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Terminal, Sliders, FolderOpen, Save, FileCode, Bot, X } from 'lucide-react';
+import { Search, Terminal, Sliders, FolderOpen, Save, FileCode, Bot, X, Sparkles } from 'lucide-react';
 import { useElythraStore } from '../store/useElythraStore';
 
 export const CommandPalette: React.FC = () => {
@@ -95,14 +95,14 @@ export const CommandPalette: React.FC = () => {
   return (
     <div
       onClick={() => setActiveModal(null)}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-24 z-50 select-none"
+      className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-start justify-center pt-24 z-50 select-none animate-fadeIn"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[600px] bg-[#161616] border border-[#262626] rounded-btn shadow-2xl overflow-hidden text-[#e5e5e5] flex flex-col"
+        className="w-[620px] max-w-[94%] bg-[#0c0f18]/95 border border-[#232c40] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl overflow-hidden text-[#e2e8f0] flex flex-col"
       >
-        <div className="flex items-center px-3 border-b border-[#1f1f1f]">
-          <Search size={15} className="text-[#8a8a8a] mr-2" />
+        <div className="flex items-center px-4 border-b border-[#181d2a] bg-[#090b10]">
+          <Search size={15} className="text-sky-400 mr-2.5 flex-shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -113,22 +113,22 @@ export const CommandPalette: React.FC = () => {
             }}
             onKeyDown={handleKeyDown}
             placeholder={
-              activeModal === 'quick-open' ? 'Search files by name...' : 'Type a command or file name...'
+              activeModal === 'quick-open' ? 'Dosya adı ara...' : 'Komut veya dosya adı yaz...'
             }
-            className="flex-1 bg-transparent py-3 text-[13px] text-[#e5e5e5] placeholder-[#8a8a8a] focus:outline-none"
+            className="flex-1 bg-transparent py-3.5 text-[13.5px] text-[#f1f5f9] placeholder-[#5a6578] focus:outline-none"
           />
           <button
             onClick={() => setActiveModal(null)}
-            className="p-1 text-[#8a8a8a] hover:text-[#e5e5e5]"
+            className="p-1 text-[#7e8b9f] hover:text-white rounded-lg hover:bg-[#141926] transition-colors"
           >
             <X size={15} />
           </button>
         </div>
 
-        <div className="max-h-[320px] overflow-y-auto py-1">
+        <div className="max-h-[340px] overflow-y-auto p-1.5 space-y-0.5">
           {filtered.length === 0 ? (
-            <div className="px-4 py-6 text-center text-[#8a8a8a] text-[12px]">
-              No matching items found.
+            <div className="px-4 py-8 text-center text-[#64748b] text-[12px]">
+              Eşleşen komut veya dosya bulunamadı.
             </div>
           ) : (
             filtered.map((item, idx) => {
@@ -143,16 +143,18 @@ export const CommandPalette: React.FC = () => {
                     setActiveModal(null);
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex items-center justify-between px-3.5 py-2 text-[12px] cursor-pointer transition-colors ${
-                    isSelected ? 'bg-[#2a2a2a] text-white' : 'text-[#8a8a8a] hover:text-[#e5e5e5]'
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[12.5px] cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-[#141a29] text-white border border-sky-500/30 shadow-sm'
+                      : 'text-[#8b95a5] hover:text-[#f1f5f9] hover:bg-[#0e121c] border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
-                    <Icon size={14} className={isSelected ? 'text-white' : 'text-[#8a8a8a]'} />
+                    <Icon size={14} className={isSelected ? 'text-sky-400' : 'text-[#64748b]'} />
                     <span className="truncate">{item.title}</span>
                   </div>
                   {item.shortcut && (
-                    <span className="text-[10px] text-[#666666] font-mono ml-4 flex-shrink-0">
+                    <span className="text-[10.5px] text-[#64748b] font-mono ml-4 flex-shrink-0 px-1.5 py-0.5 rounded bg-[#101420] border border-[#1b2234]">
                       {item.shortcut}
                     </span>
                   )}

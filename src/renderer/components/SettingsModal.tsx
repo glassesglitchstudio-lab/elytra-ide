@@ -360,10 +360,10 @@ export const SettingsModal: React.FC = () => {
   }).length;
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 select-none">
-      <div className="w-[820px] h-[640px] bg-[#14161a] border border-[#272b36] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[#e5e7eb]">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 select-none animate-fadeIn">
+      <div className="w-[840px] h-[640px] bg-[#0c0f18]/95 border border-[#232c40] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl flex flex-col overflow-hidden text-[#e2e8f0]">
         {/* Modal Başlığı */}
-        <div className="h-14 px-5 border-b border-[#222530] flex items-center justify-between bg-[#111317]">
+        <div className="h-14 px-5 border-b border-[#181d2a] flex items-center justify-between bg-[#090b10]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
               <Key size={16} />
@@ -393,7 +393,7 @@ export const SettingsModal: React.FC = () => {
         {/* Gövde */}
         <div className="flex-1 flex overflow-hidden">
           {/* Sol Sekme Menüsü */}
-          <div className="w-52 bg-[#0e1014] border-r border-[#222530] p-3 space-y-1.5">
+          <div className="w-52 bg-[#07090e] border-r border-[#181d2a] p-3 space-y-1.5">
             <button
               onClick={() => setActiveTab('keys')}
               className={`w-full flex items-center justify-between px-3 py-2.5 text-[12.5px] rounded-xl transition-all ${

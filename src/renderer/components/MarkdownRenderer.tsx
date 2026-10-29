@@ -27,7 +27,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [executedCmdId, setExecutedCmdId] = useState<string | null>(null);
 
-  // Default to collapsed (Thought Process >) matching Cursor / Antigravity design
+  // Default to collapsed (Thought Process >) matching Elytra design
   const [isThoughtOpen, setIsThoughtOpen] = useState(false);
 
   const handleCopy = (text: string, id: string) => {
@@ -103,130 +103,167 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
 
   const flushText = () => {
     if (currentTextLines.length > 0) {
-      const textBlock = currentTextLines.join('\n').trim();
-      if (textBlock) {
-        if (
-          textBlock.includes('API Error') ||
-          textBlock.includes('Diagnostic') ||
-          textBlock.includes('Hata:') ||
-          textBlock.includes('Bağlantı Hatası:')
-        ) {
-          blocks.push({ type: 'error', text: textBlock.replace(/^[\u{26A0}\s]+/, '') });
+      const text = currentTextLines.join('\n').trim();
+      if (text) {
+        // Detect native search indicator
+        if (text.startsWith('🔍 Web Arama:') || text.startsWith('🌐 Canlı Arama Sonuçları:')) {
+          blocks.push({ type: 'search', text });
+        } else if (text.startsWith('❌') || text.toLowerCase().includes('hata:')) {
+          blocks.push({ type: 'error', text });
         } else {
-          blocks.push({ type: 'text', text: textBlock });
+          blocks.push({ type: 'text', text });
         }
       }
       currentTextLines = [];
     }
   };
 
+  const flushCode = () => {
+    if (inCodeBlock && currentCodeLines.length > 0) {
+      blocks.push({
+        type: 'code',
+        language: currentLanguage || 'plaintext',
+        code: currentCodeLines.join('\n'),
+      });
+      currentCodeLines = [];
+    }
+  };
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Web Search / Research pattern: Tools: Araştırma Aracı ... or Tools: Web Search ... or [Web Araştırması: ...]
-    if (
-      line.match(/^(?:>|\[)?\s*(?:\u{1F310}\s*)?(?:Tools?\s*:\s*)?(?:Araştırma Aracı|Web Search|Search|Browsing|Web Research|Web Araştırması)\b/iu) ||
-      line.match(/^(?:>|\[)?\s*(?:\u{1F310}\s*)?Tools?\s*:\s*.*(?:search|araştır|web|google)/iu)
-    ) {
-      flushText();
-      const rawText = line
-        .replace(/^Tools?\s*:\s*/i, '')
-        .replace(/^[>\[]\s*/, '')
-        .replace(/[\]]$/, '')
-        .replace(/^[\u{1F310}\s]+/, '')
-        .trim();
-
-      let toolName = 'Araştırma Aracı (Web Search)';
-      let text = rawText;
-      const parts = rawText.split(/[-–—:]\s*(.+)/);
-      if (parts.length > 1 && (rawText.toLowerCase().includes('araştırma') || rawText.toLowerCase().includes('search') || rawText.toLowerCase().includes('web'))) {
-        toolName = parts[0].trim();
-        text = parts[1].trim();
-      }
-
-      blocks.push({
-        type: 'search',
-        toolName,
-        text,
-      });
-      continue;
-    }
-
-    // Generic Tool call pattern: Tools: <Tool Name> - <Payload> or [Tool: ...] or > [Tool Execution: ...]
-    if (
-      line.match(/^(?:>|\[)?\s*(?:\u{26A1}\s*)?Tools?\s*:\s*/iu) ||
-      line.match(/^[>\[]\s*(?:\u{26A1}\s*)?(?:\**Tools?|\[Tools?|\**Execution)/iu)
-    ) {
-      flushText();
-      const rawText = line
-        .replace(/^[>\[]\s*/, '')
-        .replace(/[\]]$/, '')
-        .replace(/^[\u{26A1}\s]+/, '')
-        .replace(/^Tools?\s*:\s*/i, '')
-        .trim();
-
-      let toolName = 'Araç Kullanımı';
-      let text = rawText;
-      const parts = rawText.split(/[-–—:]\s*(.+)/);
-      if (parts.length > 1) {
-        toolName = parts[0].trim();
-        text = parts[1].trim();
-      }
-
-      blocks.push({
-        type: 'tool',
-        toolName,
-        text,
-      });
-      continue;
-    }
-
     if (line.startsWith('```')) {
-      if (inCodeBlock) {
-        // End of code block
-        blocks.push({
-          type: 'code',
-          language: currentLanguage || 'code',
-          code: currentCodeLines.join('\n'),
-        });
-        currentCodeLines = [];
-        inCodeBlock = false;
-        currentLanguage = '';
-      } else {
-        // Start of code block
+      if (!inCodeBlock) {
+        // Code block start
         flushText();
         inCodeBlock = true;
         currentLanguage = line.slice(3).trim();
+        currentCodeLines = [];
+      } else {
+        // Code block end
+        flushCode();
+        inCodeBlock = false;
+        currentLanguage = '';
       }
-      continue;
-    }
-
-    if (inCodeBlock) {
+    } else if (inCodeBlock) {
       currentCodeLines.push(line);
     } else {
       currentTextLines.push(line);
     }
   }
 
-  // Flush any lingering blocks
-  if (inCodeBlock && currentCodeLines.length > 0) {
-    blocks.push({
-      type: 'code',
-      language: currentLanguage || 'code',
-      code: currentCodeLines.join('\n'),
+  flushCode();
+  flushText();
+
+  // Helper to render bold, italic, inline code, and links in text
+  const renderFormattedText = (rawText: string) => {
+    // Process markdown headings
+    if (rawText.startsWith('### ')) {
+      return (
+        <h3 className="text-[14px] font-semibold text-white tracking-tight mt-3 mb-1.5 flex items-center gap-1.5">
+          <Sparkles size={13} className="text-sky-400" />
+          <span>{rawText.slice(4)}</span>
+        </h3>
+      );
+    }
+    if (rawText.startsWith('## ')) {
+      return (
+        <h2 className="text-[15px] font-bold text-white tracking-tight mt-4 mb-2 pb-1 border-b border-[#1b2234]">
+          {rawText.slice(3)}
+        </h2>
+      );
+    }
+    if (rawText.startsWith('# ')) {
+      return (
+        <h1 className="text-[17px] font-bold text-white tracking-tight mt-4 mb-2 pb-1.5 border-b border-[#20283c]">
+          {rawText.slice(2)}
+        </h1>
+      );
+    }
+
+    // Split paragraphs
+    const paragraphs = rawText.split('\n\n');
+
+    return (
+      <div className="space-y-2.5">
+        {paragraphs.map((p, pIdx) => {
+          // Bullet point lists
+          if (p.startsWith('- ') || p.startsWith('* ')) {
+            const items = p.split('\n').filter((l) => l.trim().length > 0);
+            return (
+              <ul key={pIdx} className="space-y-1.5 my-2 pl-4 list-disc list-outside text-[#cbd5e1]">
+                {items.map((item, iIdx) => (
+                  <li key={iIdx} className="leading-relaxed">
+                    {parseInlineMarkup(item.replace(/^[-*]\s+/, ''))}
+                  </li>
+                ))}
+              </ul>
+            );
+          }
+
+          // Numbered lists
+          if (/^\d+\.\s/.test(p)) {
+            const items = p.split('\n').filter((l) => l.trim().length > 0);
+            return (
+              <ol key={pIdx} className="space-y-1.5 my-2 pl-4 list-decimal list-outside text-[#cbd5e1]">
+                {items.map((item, iIdx) => (
+                  <li key={iIdx} className="leading-relaxed">
+                    {parseInlineMarkup(item.replace(/^\d+\.\s+/, ''))}
+                  </li>
+                ))}
+              </ol>
+            );
+          }
+
+          return (
+            <p key={pIdx} className="leading-relaxed text-[#e2e8f0]">
+              {parseInlineMarkup(p)}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const parseInlineMarkup = (text: string) => {
+    // Split by inline code `...`
+    const parts = text.split(/(`[^`]+`)/g);
+
+    return parts.map((part, idx) => {
+      if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+        return (
+          <code
+            key={idx}
+            className="px-1.5 py-0.5 rounded-md bg-[#121624] border border-[#232d42] text-sky-300 font-mono text-[12px] select-text"
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+
+      // Strong / Bold **...**
+      const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+      return boldParts.map((bPart, bIdx) => {
+        if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
+          return (
+            <strong key={bIdx} className="font-semibold text-white">
+              {bPart.slice(2, -2)}
+            </strong>
+          );
+        }
+        return bPart;
+      });
     });
-  } else {
-    flushText();
-  }
+  };
 
   return (
     <div className="space-y-3 leading-relaxed text-[#e2e8f0] text-[13.5px]">
-      {/* Sleek Thought Process Accordion (Cursor / Antigravity Style) */}
+      {/* Sleek Thought Process Accordion (Elytra Design System) */}
       {thoughtContent && (
         <div className="mb-3.5 select-none font-sans">
           <button
             onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-            className="inline-flex items-center gap-2 py-1.5 px-3 rounded-xl text-[12.5px] font-medium text-[#94a3b8] hover:text-white bg-[#12151d] hover:bg-[#181c26] border border-[#222736] hover:border-sky-500/30 shadow-sm transition-all cursor-pointer group"
+            className="inline-flex items-center gap-2 py-1.5 px-3 rounded-xl text-[12.5px] font-medium text-[#94a3b8] hover:text-white bg-[#0e121c] hover:bg-[#141a29] border border-[#202738] hover:border-sky-500/30 shadow-sm transition-all cursor-pointer group"
           >
             <Brain
               size={14}
@@ -250,7 +287,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
 
           {/* Smooth Collapsible Content */}
           {isThoughtOpen && (
-            <div className="mt-2.5 p-3.5 rounded-xl bg-[#0d0f15]/90 border border-[#202534] text-[12px] leading-relaxed text-[#94a3b8] space-y-2 select-text font-mono animate-fadeIn shadow-inner">
+            <div className="mt-2.5 p-3.5 rounded-2xl bg-[#0a0c14]/95 border border-[#1b2234] text-[12px] leading-relaxed text-[#94a3b8] space-y-2 select-text font-mono animate-fadeIn shadow-inner">
               {thoughtContent.split('\n\n').map((para, pIdx) => (
                 <div key={pIdx} className="whitespace-pre-wrap">
                   {para}
@@ -267,61 +304,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           return (
             <div
               key={idx}
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-[#0b1424] via-[#0f2038] to-[#0b1424] border border-sky-500/40 text-[12.5px] font-mono my-2.5 shadow-lg shadow-sky-950/20 select-none animate-fadeIn"
+              className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-[#0e1424] border border-sky-500/35 text-[12.5px] font-mono my-2.5 shadow-lg select-none animate-fadeIn"
             >
-              <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center flex-shrink-0 text-sky-400 shadow-inner">
-                <Globe size={15} />
+              <div className="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 flex-shrink-0">
+                <Globe size={13} />
               </div>
-              <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold tracking-wider text-sky-400 uppercase bg-sky-950/80 px-1.5 py-0.5 rounded border border-sky-800/50">
-                    TOOLS:
-                  </span>
-                  <span className="text-[12px] font-semibold text-white tracking-wide truncate">
-                    {block.toolName || 'Araştırma Aracı (Web Search)'}
-                  </span>
-                </div>
-                {block.text && (
-                  <span className="text-[11.5px] text-[#93c5fd] truncate mt-0.5 font-normal">
-                    {block.text}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10.5px] font-medium text-sky-300 px-2.5 py-0.5 rounded-full bg-sky-950/80 border border-sky-600/40 flex-shrink-0 shadow-sm">
-                Aktif Kullanıldı
-              </span>
-            </div>
-          );
-        }
-
-        if (block.type === 'tool') {
-          return (
-            <div
-              key={idx}
-              className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-[#0b1c14] via-[#0e271c] to-[#0b1c14] border border-emerald-500/40 text-[12.5px] font-mono my-2.5 shadow-lg shadow-emerald-950/20 select-none animate-fadeIn"
-            >
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0 text-emerald-400 shadow-inner">
-                <Terminal size={15} />
-              </div>
-              <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/50">
-                    TOOLS:
-                  </span>
-                  <span className="text-[12px] font-semibold text-white tracking-wide truncate">
-                    {block.toolName || 'Araç Çağrısı'}
-                  </span>
-                </div>
-                {block.text && (
-                  <span className="text-[11.5px] text-[#a7f3d0] truncate mt-0.5 font-normal">
-                    {block.text}
-                  </span>
-                )}
-              </div>
-              <span className="flex items-center gap-1 text-[10.5px] font-medium text-emerald-300 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-600/40 flex-shrink-0 shadow-sm">
-                <Check size={11} className="text-emerald-400" />
-                <span>Kullanıldı</span>
-              </span>
+              <span className="text-sky-300 font-medium truncate flex-1">{block.text}</span>
             </div>
           );
         }
@@ -330,136 +318,124 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           return (
             <div
               key={idx}
-              className="p-3.5 rounded-xl bg-red-950/25 border border-red-800/50 text-red-200 text-[13px] my-3 space-y-1.5 shadow-md"
+              className="flex items-center gap-2.5 p-3 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-rose-300 text-[12.5px] my-2 animate-fadeIn"
             >
-              <div className="flex items-center gap-2 font-semibold text-red-400">
-                <AlertTriangle size={15} />
-                <span>API & Sistem Tanı Raporu</span>
-              </div>
-              <div className="whitespace-pre-wrap text-[12.5px] text-red-300/90 leading-relaxed font-sans">
-                {block.text}
-              </div>
+              <AlertTriangle size={15} className="text-rose-400 flex-shrink-0" />
+              <span>{block.text}</span>
             </div>
           );
         }
 
         if (block.type === 'code') {
-          const codeId = `code-${idx}`;
-          const isApplied = appliedId === codeId;
-          const isCopied = copiedId === codeId;
-
-          const lang = (block.language || '').toLowerCase().trim();
-          const codeSnippet = (block.code || '').trim();
-          const isTerminalCmd =
-            ['bash', 'sh', 'shell', 'zsh', 'powershell', 'cmd', 'terminal'].includes(lang) ||
-            /^(npm|pnpm|yarn|npx|git|python|pip|pytest|cargo|docker|deno|bun|cat|ls|cd|echo|curl|wget)\b/i.test(codeSnippet);
+          const codeText = block.code || '';
+          const lang = block.language || 'plaintext';
+          const blockId = `code-${idx}-${lang}`;
+          const isShell = ['bash', 'sh', 'shell', 'zsh', 'terminal', 'powershell', 'cmd'].includes(
+            lang.toLowerCase()
+          );
 
           return (
             <div
               key={idx}
-              className="my-3.5 rounded-xl border border-[#242b3b] bg-[#090b10] overflow-hidden shadow-xl group transition-all hover:border-[#333d52]"
+              className="my-3 rounded-2xl overflow-hidden border border-[#1b2234] bg-[#080a0f] shadow-xl group"
             >
               {/* Code Header Bar */}
-              <div className="h-9 px-3.5 bg-[#121620] border-b border-[#202736] flex items-center justify-between select-none">
-                <div className="flex items-center gap-2">
-                  {isTerminalCmd ? (
-                    <div className="w-5 h-5 rounded-md bg-emerald-950/60 border border-emerald-800/40 flex items-center justify-center">
-                      <Terminal size={12} className="text-emerald-400" />
-                    </div>
+              <div className="h-8 px-3.5 bg-[#0e121c] border-b border-[#181d2a] flex items-center justify-between select-none text-[11px] text-[#7e8b9f]">
+                <div className="flex items-center gap-2 font-mono">
+                  {isShell ? (
+                    <Terminal size={12} className="text-sky-400" />
                   ) : (
-                    <div className="w-5 h-5 rounded-md bg-[#181d28] border border-[#2b3348] flex items-center justify-center">
-                      <Code2 size={12} className="text-sky-400" />
-                    </div>
+                    <Code2 size={12} className="text-emerald-400" />
                   )}
-                  <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#94a3b8]">
-                    {block.language || (isTerminalCmd ? 'terminal' : 'code')}
+                  <span className="uppercase text-[#94a3b8] font-medium tracking-wide">
+                    {lang || 'code'}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleCopy(block.code || '', codeId)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-[#94a3b8] hover:text-white hover:bg-white/[0.08] transition-all"
-                    title="Kodu kopyala"
-                  >
-                    {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                    <span>{isCopied ? 'Kopyalandı!' : 'Kopyala'}</span>
-                  </button>
-
-                  {isTerminalCmd ? (
+                  {/* Run in Terminal Button (for shell commands) */}
+                  {isShell && (
                     <button
-                      onClick={() => handleRunTerminal(block.code || '', codeId)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm transition-all"
-                      title="Komutu terminalde çalıştır"
+                      onClick={() => handleRunTerminal(codeText, blockId)}
+                      className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10.5px] font-medium transition-colors ${
+                        executedCmdId === blockId
+                          ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'
+                          : 'hover:bg-[#1a2134] text-[#cbd5e1] hover:text-white border border-[#232d42]'
+                      }`}
+                      title="Run in Integrated Terminal"
                     >
-                      {executedCmdId === codeId ? (
-                        <CheckCircle2 size={12} className="text-emerald-400" />
+                      {executedCmdId === blockId ? (
+                        <>
+                          <Check size={11} strokeWidth={2.5} />
+                          <span>Çalıştırıldı</span>
+                        </>
                       ) : (
-                        <Play size={11} fill="currentColor" />
+                        <>
+                          <Play size={10} fill="currentColor" />
+                          <span>Terminalde Çalıştır</span>
+                        </>
                       )}
-                      <span>{executedCmdId === codeId ? 'Çalıştırılıyor...' : 'Terminalde Çalıştır'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleApply(block.code || '', codeId, block.language || 'typescript')}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 shadow-sm transition-all"
-                      title="Kodu aktif editöre aktar ve Diff incelemesi başlat"
-                    >
-                      {isApplied ? (
-                        <CheckCircle2 size={12} className="text-emerald-400" />
-                      ) : (
-                        <FileCode size={12} />
-                      )}
-                      <span>{isApplied ? 'Aktarıldı' : 'Editöre Aktar'}</span>
                     </button>
                   )}
+
+                  {/* Apply to File Button (for source files) */}
+                  {!isShell && (
+                    <button
+                      onClick={() => handleApply(codeText, blockId, lang)}
+                      className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10.5px] font-medium transition-all ${
+                        appliedId === blockId
+                          ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'
+                          : 'hover:bg-sky-950/60 text-sky-300 hover:text-white border border-sky-800/40'
+                      }`}
+                      title="Apply this code to active open editor"
+                    >
+                      {appliedId === blockId ? (
+                        <>
+                          <Check size={11} strokeWidth={2.5} />
+                          <span>Uygulandı!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={11} className="text-sky-400" />
+                          <span>Dosyaya Uygula</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Copy Button */}
+                  <button
+                    onClick={() => handleCopy(codeText, blockId)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] text-[#7e8b9f] hover:text-white hover:bg-[#182032] transition-colors"
+                    title="Kodu Kopyala"
+                  >
+                    {copiedId === blockId ? (
+                      <>
+                        <Check size={11} strokeWidth={2.5} className="text-emerald-400" />
+                        <span className="text-emerald-400">Kopyalandı</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={11} />
+                        <span>Kopyala</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
-              {/* Code Content */}
-              <div className="p-3.5 overflow-x-auto font-mono text-[12.5px] leading-relaxed text-[#e2e8f0] bg-[#080a0e]">
-                <pre className="m-0 p-0 font-mono select-text whitespace-pre">
-                  <code>{block.code}</code>
+              {/* Code Body */}
+              <div className="p-3.5 overflow-x-auto text-[12.5px] font-mono leading-relaxed bg-[#07090e] text-[#f1f5f9] select-text">
+                <pre>
+                  <code>{codeText}</code>
                 </pre>
               </div>
             </div>
           );
         }
 
-        // Render plain Markdown paragraphs / headers / lists
-        return (
-          <div key={idx} className="whitespace-pre-wrap leading-relaxed space-y-2 select-text">
-            {block.text?.split('\n\n').map((paragraph, pIdx) => {
-              if (paragraph.startsWith('## ')) {
-                return (
-                  <h2
-                    key={pIdx}
-                    className="text-[15.5px] font-bold text-white tracking-tight mt-3 mb-1.5 border-b border-[#202636] pb-1.5 flex items-center gap-2"
-                  >
-                    <span className="w-1.5 h-4 rounded-full bg-sky-400 inline-block mr-0.5" />
-                    <span>{paragraph.replace(/^##\s*/, '')}</span>
-                  </h2>
-                );
-              }
-              if (paragraph.startsWith('### ')) {
-                return (
-                  <h3
-                    key={pIdx}
-                    className="text-[13.5px] font-semibold text-[#f1f5f9] tracking-tight mt-2.5 mb-1 flex items-center gap-1.5"
-                  >
-                    <span className="w-1 h-3 rounded-full bg-purple-400 inline-block mr-0.5" />
-                    <span>{paragraph.replace(/^###\s*/, '')}</span>
-                  </h3>
-                );
-              }
-              return (
-                <p key={pIdx} className="leading-relaxed text-[#cbd5e1]">
-                  {paragraph}
-                </p>
-              );
-            })}
-          </div>
-        );
+        // Standard Text Block
+        return <div key={idx}>{renderFormattedText(block.text || '')}</div>;
       })}
 
       {/* Streaming pulse cursor */}

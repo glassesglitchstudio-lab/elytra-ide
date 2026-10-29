@@ -24,6 +24,7 @@ import {
   Copy,
   Search,
   Globe,
+  Cpu,
 } from 'lucide-react';
 import { ElythraLogo } from './icons/ElythraLogo';
 import { useElythraStore } from '../store/useElythraStore';
@@ -39,6 +40,29 @@ interface ModelItem {
 }
 
 const AVAILABLE_MODELS: ModelItem[] = [
+  // 0. Elytra Studio AGI Serisi (0.1-Pro OXYGEN, 0.5-Pro, 1.0-Pro CARBON)
+  {
+    id: 'elytra/0.1-pro-oxygen',
+    name: 'Elytra 0.1-Pro OXYGEN',
+    provider: 'Elytra Studio',
+    tag: 'AGI Core (DPO-72B)',
+    category: 'pro',
+  },
+  {
+    id: 'elytra/0.5-pro-oxygen',
+    name: 'Elytra 0.5-Pro OXYGEN',
+    provider: 'Elytra Studio',
+    tag: 'AGI Native',
+    category: 'pro',
+  },
+  {
+    id: 'elytra/1.0-pro-carbon',
+    name: 'Elytra 1.0-Pro CARBON 💎',
+    provider: 'Elytra Studio',
+    tag: 'AGI Flagship',
+    category: 'pro',
+  },
+
   // 1. GitHub Copilot (OAuth & Device Auth)
   {
     id: 'copilot/claude-3.7-sonnet',
@@ -323,6 +347,7 @@ export const HomeScreen: React.FC = () => {
   });
 
   const isModelSupported = (m: ModelItem) => {
+    if (m.provider === 'Elytra Studio') return true;
     if (m.category === 'copilot' || m.provider === 'GitHub Copilot') {
       return !!apiKeys.githubCopilot?.trim();
     }
@@ -359,12 +384,13 @@ export const HomeScreen: React.FC = () => {
     return false;
   };
 
+  const elytraModels = AVAILABLE_MODELS.filter((m) => m.provider === 'Elytra Studio');
   const copilotModels = AVAILABLE_MODELS.filter((m) => m.category === 'copilot' && isModelSupported(m));
   const zenModels = AVAILABLE_MODELS.filter((m) => m.category === 'zen' && isModelSupported(m));
   const freeModels = AVAILABLE_MODELS.filter((m) => m.category === 'free' && isModelSupported(m));
   const coreModels = AVAILABLE_MODELS.filter((m) => m.category === 'core' && isModelSupported(m));
-  const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && isModelSupported(m));
-  const allAvailableModels = [...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
+  const proModels = AVAILABLE_MODELS.filter((m) => m.category === 'pro' && m.provider !== 'Elytra Studio' && isModelSupported(m));
+  const allAvailableModels = [...elytraModels, ...copilotModels, ...zenModels, ...freeModels, ...coreModels, ...proModels];
 
   const [modelSearch, setModelSearch] = useState('');
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
@@ -380,7 +406,7 @@ export const HomeScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    if (hasAnyProvider && allAvailableModels.length > 0) {
+    if (allAvailableModels.length > 0) {
       const isValid = allAvailableModels.some((m) => m.name === selectedModel);
       if (!isValid) {
         setSelectedModel(allAvailableModels[0].name);
@@ -449,17 +475,19 @@ export const HomeScreen: React.FC = () => {
     // Auto resize textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(220, Math.max(52, textareaRef.current.scrollHeight))}px`;
+      textareaRef.current.style.height = `${Math.min(220, Math.max(58, textareaRef.current.scrollHeight))}px`;
     }
 
-    if (val.endsWith('@')) {
+    // Trigger @ mention popover
+    if (val.endsWith('@') || (val.includes('@') && !val.endsWith(' '))) {
       setShowMentionMenu(true);
       setShowSlashMenu(false);
-    } else if (!val.includes('@')) {
+    } else {
       setShowMentionMenu(false);
     }
 
-    if (val.startsWith('/') && !val.includes(' ')) {
+    // Trigger / slash popover
+    if (val === '/' || (val.startsWith('/') && !val.includes(' '))) {
       setShowSlashMenu(true);
       setShowMentionMenu(false);
     } else {
@@ -478,16 +506,16 @@ export const HomeScreen: React.FC = () => {
     if (!input.trim() || isGenerating) return;
     sendMessage(input);
     setInput('');
-    setShowSlashMenu(false);
     setShowMentionMenu(false);
+    setShowSlashMenu(false);
     if (textareaRef.current) {
-      textareaRef.current.style.height = '52px';
+      textareaRef.current.style.height = '58px';
     }
   };
 
-  const handleSelectProject = async (pPath: string) => {
+  const handleSelectProject = (projectPath: string) => {
+    openProject(projectPath);
     setShowProjectDropdown(false);
-    await openProject(pPath);
   };
 
   const handleOpenFolderPicker = async () => {
@@ -499,16 +527,15 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const toggleVoiceInput = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Sesli tanıma bu tarayıcıda desteklenmiyor.');
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      setIsListening(false);
       return;
     }
 
-    if (isListening) {
-      setIsListening(false);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Ses tanıma bu tarayıcı / sistemde desteklenmiyor.');
       return;
     }
 
@@ -532,16 +559,16 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  // Floating Review Bar (Cursor / Antigravity Style Accept & Decline)
+  // Elytra Floating Review Bar (Accept & Decline)
   const renderDiffBar = () => {
     if (!activeDiff) return null;
 
     return (
-      <div className="mb-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#0d1220]/95 via-[#131b30]/95 to-[#0d1220]/95 border border-sky-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(56,189,248,0.12)] flex items-center justify-between gap-3 animate-fadeIn select-none">
+      <div className="mb-3 px-4 py-3 rounded-2xl bg-[#0e121e]/95 border border-sky-500/40 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.7),0_0_20px_rgba(56,189,248,0.15)] flex items-center justify-between gap-3 animate-fadeIn select-none">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex-shrink-0 shadow-inner">
             <FileCode size={16} />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-400 rounded-full border-2 border-[#0d1220] animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-400 rounded-full border-2 border-[#0e121e] animate-pulse" />
           </div>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
@@ -570,7 +597,7 @@ export const HomeScreen: React.FC = () => {
 
           <button
             onClick={rejectDiff}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-medium text-red-300 bg-red-950/50 hover:bg-red-900/60 border border-red-800/50 transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-medium text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/50 transition-all shadow-sm active:scale-95"
             title="Değişiklikleri iptal et ve önceki haline döndür"
           >
             <Undo2 size={13} />
@@ -590,7 +617,7 @@ export const HomeScreen: React.FC = () => {
     );
   };
 
-  // Reusable Unified Prompt Capsule (Antigravity Center & Bottom)
+  // Elytra Unified Prompt Capsule
   const renderPromptCapsule = () => (
     <div className="w-full relative select-none">
       {/* Workspace Pill & Thread Selector */}
@@ -598,34 +625,34 @@ export const HomeScreen: React.FC = () => {
         <div className="relative">
           <button
             onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-            className="flex items-center gap-1.5 text-[12px] font-medium text-[#888888] hover:text-[#e5e5e5] px-2.5 py-1 rounded-lg hover:bg-[#1a1c22] transition-colors border border-[#222530]"
+            className="flex items-center gap-1.5 text-[12px] font-medium text-[#8b95a5] hover:text-[#f1f5f9] px-2.5 py-1 rounded-xl hover:bg-[#141926] transition-colors border border-[#1e2536]"
           >
             <FolderOpen size={13} className="text-sky-400" />
             <span className="truncate max-w-[220px]">
               {activeProject ? activeProject.name : 'Çalışma Alanı Seç'}
             </span>
-            <ChevronDown size={12} className="text-[#666666]" />
+            <ChevronDown size={12} className="text-[#64748b]" />
           </button>
 
           {showProjectDropdown && (
-            <div className="absolute bottom-full left-0 mb-1 w-64 bg-[#14161b] border border-[#262a36] rounded-xl py-1 shadow-2xl z-50">
-              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#777777]">
+            <div className="absolute bottom-full left-0 mb-1 w-64 glass-dropdown rounded-2xl py-1 z-50">
+              <div className="px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#64748b]">
                 Mevcut Projeler
               </div>
               {projects.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => handleSelectProject(p.path)}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-[#e5e5e5] hover:bg-[#222634] truncate transition-colors flex items-center gap-2"
+                  className="w-full text-left px-3.5 py-1.5 text-[12px] text-[#cbd5e1] hover:bg-[#182032] truncate transition-colors flex items-center gap-2"
                 >
                   <FileCode size={13} className="text-sky-400" />
                   <span className="truncate">{p.name}</span>
                 </button>
               ))}
-              <div className="my-1 border-t border-[#20232e]" />
+              <div className="my-1 border-t border-[#1e2536]" />
               <button
                 onClick={handleOpenFolderPicker}
-                className="w-full text-left px-3 py-1.5 text-[12px] text-white hover:bg-[#222634] transition-colors flex items-center gap-2"
+                className="w-full text-left px-3.5 py-1.5 text-[12px] text-white hover:bg-[#182032] transition-colors flex items-center gap-2"
               >
                 <Plus size={13} className="text-emerald-400" />
                 <span>Klasör Aç...</span>
@@ -637,7 +664,7 @@ export const HomeScreen: React.FC = () => {
         {hasMessages && (
           <button
             onClick={startNewConversation}
-            className="text-[11px] text-[#888888] hover:text-white px-2.5 py-1 rounded-lg hover:bg-[#1a1c22] border border-[#222530] transition-colors flex items-center gap-1"
+            className="text-[11px] text-[#8b95a5] hover:text-white px-2.5 py-1 rounded-xl hover:bg-[#141926] border border-[#1e2536] transition-colors flex items-center gap-1"
           >
             <Plus size={12} />
             <span>Yeni Oturum</span>
@@ -647,8 +674,8 @@ export const HomeScreen: React.FC = () => {
 
       {/* Slash Command Popover */}
       {showSlashMenu && (
-        <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1 shadow-2xl z-50 animate-fadeIn">
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-[#777777] uppercase tracking-wider">
+        <div className="absolute bottom-full left-0 mb-2 w-84 glass-dropdown rounded-2xl py-1.5 z-50 animate-fadeIn">
+          <div className="px-3.5 py-1.5 text-[10px] font-semibold text-[#64748b] uppercase tracking-wider">
             Hızlı Komutlar
           </div>
           {SLASH_COMMANDS.map((item) => (
@@ -659,26 +686,26 @@ export const HomeScreen: React.FC = () => {
                 setShowSlashMenu(false);
                 textareaRef.current?.focus();
               }}
-              className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#222634] transition-colors flex items-center gap-2.5 text-[#e5e5e5]"
+              className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#182032] transition-colors flex items-center gap-2.5 text-[#e2e8f0]"
             >
               <item.icon size={14} className="text-sky-400" />
               <span className="font-mono font-medium text-sky-400">{item.cmd}</span>
-              <span className="text-[11px] text-[#888888] truncate">{item.desc}</span>
+              <span className="text-[11px] text-[#8b95a5] truncate">{item.desc}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Real @ Mention File Popover (Cursor Style) */}
+      {/* Real @ Mention File Popover */}
       {showMentionMenu && (
-        <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#14161b] border border-[#2a2f3f] rounded-xl py-1.5 shadow-2xl z-50 animate-fadeIn">
-          <div className="px-3 py-1 text-[10px] font-semibold text-[#888888] uppercase tracking-wider flex items-center justify-between">
+        <div className="absolute bottom-full left-0 mb-2 w-84 glass-dropdown rounded-2xl py-2 z-50 animate-fadeIn">
+          <div className="px-3.5 py-1 text-[10px] font-semibold text-[#7e8b9f] uppercase tracking-wider flex items-center justify-between">
             <span>Bağlam Ekle (@ Dosya)</span>
-            <span className="text-[9px] text-[#666666]">Dosya içeriği modele aktarılır</span>
+            <span className="text-[9px] text-[#64748b]">Dosya içeriği modele aktarılır</span>
           </div>
 
           {mentionCandidates.length === 0 ? (
-            <div className="px-3 py-3 text-center text-[12px] text-[#777777]">
+            <div className="px-3.5 py-3 text-center text-[12px] text-[#64748b]">
               Eşleşen dosya bulunamadı
             </div>
           ) : (
@@ -686,13 +713,13 @@ export const HomeScreen: React.FC = () => {
               <button
                 key={f.path}
                 onClick={() => handleSelectMention(f.name)}
-                className="w-full text-left px-3 py-2 text-[12.5px] hover:bg-[#222634] transition-colors flex items-center justify-between text-[#e5e5e5]"
+                className="w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[#182032] transition-colors flex items-center justify-between text-[#e2e8f0]"
               >
                 <div className="flex items-center gap-2 truncate">
                   {f.isWeb ? (
                     <Globe size={13} className="text-emerald-400" />
                   ) : (
-                    <FileCode size={13} className={f.isTab ? 'text-sky-400' : 'text-[#888888]'} />
+                    <FileCode size={13} className={f.isTab ? 'text-sky-400' : 'text-[#7e8b9f]'} />
                   )}
                   <span className="font-medium truncate">{f.name}</span>
                 </div>
@@ -712,20 +739,20 @@ export const HomeScreen: React.FC = () => {
         </div>
       )}
 
-      {/* Antigravity Prompt Capsule */}
-      <div className="bg-[#10131b]/95 backdrop-blur-xl border border-[#232938] hover:border-[#384156] focus-within:border-sky-500/60 focus-within:ring-2 focus-within:ring-sky-500/15 focus-within:shadow-[0_0_30px_rgba(56,189,248,0.1)] rounded-2xl p-3.5 shadow-2xl transition-all duration-200">
+      {/* Elytra Prompt Capsule */}
+      <div className="bg-[#0e121e]/95 backdrop-blur-2xl border border-[#202738] hover:border-[#2d374e] focus-within:border-sky-500/60 focus-within:ring-2 focus-within:ring-sky-500/15 focus-within:shadow-[0_0_35px_rgba(56,189,248,0.15)] rounded-2xl p-4 shadow-[0_16px_50px_rgba(0,0,0,0.7)] transition-all duration-200">
         <textarea
           ref={textareaRef}
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder="Elythra'ya herhangi bir şey sor, dosya için @, komutlar için / yaz..."
-          className="w-full min-h-[58px] max-h-[220px] bg-transparent text-[#f8fafc] placeholder-[#64748b] text-[14px] resize-none focus:outline-none leading-relaxed select-text font-normal"
+          placeholder="Elytra'ya herhangi bir şey sor, dosya bağlamı için @, komutlar için / yaz..."
+          className="w-full min-h-[58px] max-h-[220px] bg-transparent text-[#f8fafc] placeholder-[#5a6578] text-[14px] resize-none focus:outline-none leading-relaxed select-text font-normal"
         />
 
         {/* Capsule Bottom Toolbar */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-[#1d2332] select-none">
+        <div className="flex items-center justify-between pt-3 border-t border-[#181d2a] select-none">
           {/* Left Options Pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Model Picker Pill */}
@@ -736,264 +763,211 @@ export const HomeScreen: React.FC = () => {
                   setShowThinkingDropdown(false);
                   setShowPermDropdown(false);
                 }}
-                className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${
-                  !hasAnyProvider
-                    ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
-                    : 'text-[#e2e8f0] hover:text-white bg-[#151924] hover:bg-[#1e2332] border-[#273042] shadow-sm'
-                }`}
+                className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1 rounded-full border text-[#e2e8f0] hover:text-white bg-[#121624] hover:bg-[#1a2134] border-[#222c40] shadow-sm transition-all"
               >
-                {!hasAnyProvider ? (
-                  <Key size={11} className="text-amber-400" />
-                ) : (
-                  <Sparkles size={11} className="text-sky-400" />
-                )}
-                <span className="truncate max-w-[140px]">
-                  {!hasAnyProvider ? 'Sağlayıcı Yok' : selectedModel}
+                <Cpu size={11} className="text-sky-400" />
+                <span className="truncate max-w-[150px] font-medium">
+                  {selectedModel}
                 </span>
-                <ChevronDown size={11} className="text-[#888888]" />
+                <ChevronDown size={11} className="text-[#7e8b9f]" />
               </button>
 
               {showModelDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-84 bg-[#12141a]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1 shadow-2xl z-50 max-h-[420px] overflow-y-auto flex flex-col">
-                  {!hasAnyProvider ? (
-                    <div className="p-4 text-center space-y-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto text-amber-400">
-                        <Key size={18} />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[13px] font-semibold text-white">Kayıtlı Sağlayıcı Yok</div>
-                        <p className="text-[11px] text-[#888888] leading-relaxed">
-                          Model seçebilmek ve yanıt alabilmek için önce Ayarlar'dan en az bir API anahtarı (OpenCode Zen, Copilot, Gemini vb.) bağlamalısınız.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowModelDropdown(false);
-                          setActiveModal('settings');
-                        }}
-                        className="w-full py-2 px-3 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 text-[12px] font-medium flex items-center justify-center gap-1.5 transition-colors"
-                      >
-                        <Settings size={13} />
-                        <span>Sağlayıcı Bağla (Ayarlar)</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Search Bar at Top of Dropdown */}
-                      <div className="p-2 border-b border-[#202534] sticky top-0 bg-[#12141a] z-10">
-                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#181b24] border border-[#262c3e] text-[12px] text-white">
-                          <Search size={13} className="text-[#888888] flex-shrink-0" />
-                          <input
-                            type="text"
-                            value={modelSearch}
-                            onChange={(e) => setModelSearch(e.target.value)}
-                            placeholder="Model veya sağlayıcı ara..."
-                            className="bg-transparent text-white placeholder-[#666666] text-[11.5px] w-full focus:outline-none"
-                            autoFocus
-                          />
-                          {modelSearch && (
-                            <button
-                              onClick={() => setModelSearch('')}
-                              className="text-[#888888] hover:text-white text-[11px] px-1"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto">
-                        {/* Category -1: GitHub Copilot OAuth */}
-                        {filterBySearch(copilotModels).length > 0 && (
-                          <div>
-                            <div className="px-3 py-1.5 text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center justify-between bg-[#161026]">
-                              <span>🔗 GitHub Copilot (OAuth)</span>
-                              <span className="text-[9px] bg-purple-950/70 text-purple-300 border border-purple-800/40 px-1 rounded">Abonelik Aktif</span>
-                            </div>
-                            {filterBySearch(copilotModels).map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  setSelectedModel(m.name);
-                                  setShowModelDropdown(false);
-                                  setModelSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#221638] transition-colors flex items-center justify-between ${
-                                  selectedModel === m.name ? 'bg-[#221638] text-white font-medium border-l-2 border-purple-400' : 'text-[#cccccc]'
-                                }`}
-                              >
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate">{m.name}</span>
-                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1e1330] text-purple-300 border border-purple-800/30">
-                                    {m.tag}
-                                  </span>
-                                  {selectedModel === m.name && <Check size={13} className="text-purple-400" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Category 0: OpenCode Zen Gateway */}
-                        {filterBySearch(zenModels).length > 0 && (
-                          <div>
-                            <div className="px-3 py-1.5 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1920]">
-                              <span>⚡ OpenCode Zen Modelleri</span>
-                              <span className="text-[9px] bg-cyan-950/70 text-cyan-400 border border-cyan-800/40 px-1 rounded">Ücretsiz Gateway</span>
-                            </div>
-                            {filterBySearch(zenModels).map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  setSelectedModel(m.name);
-                                  setShowModelDropdown(false);
-                                  setModelSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#15232c] transition-colors flex items-center justify-between ${
-                                  selectedModel === m.name ? 'bg-[#15232c] text-white font-medium border-l-2 border-cyan-400' : 'text-[#cccccc]'
-                                }`}
-                              >
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate">{m.name}</span>
-                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10242a] text-cyan-300 border border-cyan-800/30">
-                                    {m.tag}
-                                  </span>
-                                  {selectedModel === m.name && <Check size={13} className="text-cyan-400" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Category 1: Free Tier */}
-                        {filterBySearch(freeModels).length > 0 && (
-                          <div>
-                            <div className="px-3 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1a14]">
-                              <span>Ücretsiz Cloud & Inference</span>
-                              <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">Yüksek Hız</span>
-                            </div>
-                            {filterBySearch(freeModels).map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  setSelectedModel(m.name);
-                                  setShowModelDropdown(false);
-                                  setModelSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#16271e] transition-colors flex items-center justify-between ${
-                                  selectedModel === m.name ? 'bg-[#16271e] text-white font-medium border-l-2 border-emerald-400' : 'text-[#cccccc]'
-                                }`}
-                              >
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate">{m.name}</span>
-                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
-                                    {m.tag}
-                                  </span>
-                                  {selectedModel === m.name && <Check size={13} className="text-emerald-400" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Category 2: Core Model */}
-                        {filterBySearch(coreModels).length > 0 && (
-                          <div>
-                            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-purple-400 uppercase tracking-wider border-t border-[#202534] bg-[#12141a]">
-                              Özel & Yerel Modeller (Custom Endpoint)
-                            </div>
-                            {filterBySearch(coreModels).map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  setSelectedModel(m.name);
-                                  setShowModelDropdown(false);
-                                  setModelSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#20172e] transition-colors flex items-center justify-between ${
-                                  selectedModel === m.name ? 'bg-[#20172e] text-white font-medium border-l-2 border-purple-400' : 'text-[#cccccc]'
-                                }`}
-                              >
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate">{m.name}</span>
-                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#251733] text-purple-300 border border-purple-800/30">
-                                    {m.tag}
-                                  </span>
-                                  {selectedModel === m.name && <Check size={13} className="text-purple-400" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Category 3: Pro BYOK */}
-                        {filterBySearch(proModels).length > 0 && (
-                          <div>
-                            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-sky-400 uppercase tracking-wider border-t border-[#202534] bg-[#12141a]">
-                              Pro Modeller (Kendi Key'iniz / OpenRouter)
-                            </div>
-                            {filterBySearch(proModels).map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  setSelectedModel(m.name);
-                                  setShowModelDropdown(false);
-                                  setModelSearch('');
-                                }}
-                                className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#162232] transition-colors flex items-center justify-between ${
-                                  selectedModel === m.name ? 'bg-[#162232] text-white font-medium border-l-2 border-sky-400' : 'text-[#cccccc]'
-                                }`}
-                              >
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate">{m.name}</span>
-                                  <span className="text-[10px] text-[#777777]">{m.provider}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c2230] text-[#9ca3af] border border-[#2c3548]">
-                                    {m.tag}
-                                  </span>
-                                  {selectedModel === m.name && <Check size={13} className="text-sky-400" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {modelSearch &&
-                          filterBySearch(allAvailableModels).length === 0 && (
-                            <div className="p-4 text-center text-[12px] text-[#777777]">
-                              "{modelSearch}" ile eşleşen bağlı model bulunamadı.
-                            </div>
-                          )}
-                      </div>
-
-                      <div className="p-2.5 border-t border-[#202534] bg-[#0d0f14] flex items-center justify-between text-[11px] text-[#777777] sticky bottom-0">
-                        <span>{allAvailableModels.length} Model Kullanılabilir</span>
+                <div className="absolute bottom-full left-0 mb-2 w-88 glass-dropdown rounded-2xl py-1 z-50 max-h-[440px] overflow-y-auto flex flex-col">
+                  {/* Search Bar at Top of Dropdown */}
+                  <div className="p-2 border-b border-[#181d2a] sticky top-0 bg-[#0b0e16] z-10">
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#121624] border border-[#202738] text-[12px] text-white">
+                      <Search size={13} className="text-[#7e8b9f] flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={modelSearch}
+                        onChange={(e) => setModelSearch(e.target.value)}
+                        placeholder="Model veya sağlayıcı ara..."
+                        className="bg-transparent text-white placeholder-[#5a6578] text-[11.5px] w-full focus:outline-none"
+                        autoFocus
+                      />
+                      {modelSearch && (
                         <button
-                          onClick={() => {
-                            setShowModelDropdown(false);
-                            setActiveModal('settings');
-                          }}
-                          className="text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1"
+                          onClick={() => setModelSearch('')}
+                          className="text-[#7e8b9f] hover:text-white text-[11px] px-1"
                         >
-                          <Settings size={11} />
-                          <span>Ayarlar</span>
+                          ✕
                         </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    {/* Category 0: Elytra Studio AGI Serisi */}
+                    {filterBySearch(elytraModels).length > 0 && (
+                      <div>
+                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-sky-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1628]">
+                          <span>💎 Elytra Studio AGI Serisi</span>
+                          <span className="text-[9px] bg-sky-950/80 text-sky-300 border border-sky-800/40 px-1 rounded">Resmi AGI</span>
+                        </div>
+                        {filterBySearch(elytraModels).map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setShowModelDropdown(false);
+                              setModelSearch('');
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#162038] transition-colors flex items-center justify-between ${
+                              selectedModel === m.name ? 'bg-[#162038] text-white font-medium border-l-2 border-sky-400' : 'text-[#cbd5e1]'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#101b30] text-sky-300 border border-sky-800/30">
+                                {m.tag}
+                              </span>
+                              {selectedModel === m.name && <Check size={13} className="text-sky-400" />}
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    </>
-                  )}
+                    )}
+
+                    {/* Category 1: GitHub Copilot OAuth */}
+                    {filterBySearch(copilotModels).length > 0 && (
+                      <div>
+                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center justify-between bg-[#151024]">
+                          <span>🔗 GitHub Copilot (OAuth)</span>
+                          <span className="text-[9px] bg-purple-950/70 text-purple-300 border border-purple-800/40 px-1 rounded">Abonelik Aktif</span>
+                        </div>
+                        {filterBySearch(copilotModels).map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setShowModelDropdown(false);
+                              setModelSearch('');
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#201636] transition-colors flex items-center justify-between ${
+                              selectedModel === m.name ? 'bg-[#201636] text-white font-medium border-l-2 border-purple-400' : 'text-[#cbd5e1]'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c132e] text-purple-300 border border-purple-800/30">
+                                {m.tag}
+                              </span>
+                              {selectedModel === m.name && <Check size={13} className="text-purple-400" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Category 2: OpenCode Zen Gateway */}
+                    {filterBySearch(zenModels).length > 0 && (
+                      <div>
+                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1920]">
+                          <span>⚡ OpenCode Zen Modelleri</span>
+                          <span className="text-[9px] bg-cyan-950/70 text-cyan-400 border border-cyan-800/40 px-1 rounded">Ücretsiz Gateway</span>
+                        </div>
+                        {filterBySearch(zenModels).map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setShowModelDropdown(false);
+                              setModelSearch('');
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#15232c] transition-colors flex items-center justify-between ${
+                              selectedModel === m.name ? 'bg-[#15232c] text-white font-medium border-l-2 border-cyan-400' : 'text-[#cbd5e1]'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#10242a] text-cyan-300 border border-cyan-800/30">
+                                {m.tag}
+                              </span>
+                              {selectedModel === m.name && <Check size={13} className="text-cyan-400" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Category 3: Free Tier */}
+                    {filterBySearch(freeModels).length > 0 && (
+                      <div>
+                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between bg-[#0e1a14]">
+                          <span>Ücretsiz Cloud & Inference</span>
+                          <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-1 rounded">Yüksek Hız</span>
+                        </div>
+                        {filterBySearch(freeModels).map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setShowModelDropdown(false);
+                              setModelSearch('');
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#16271e] transition-colors flex items-center justify-between ${
+                              selectedModel === m.name ? 'bg-[#16271e] text-white font-medium border-l-2 border-emerald-400' : 'text-[#cbd5e1]'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#13231b] text-emerald-300 border border-emerald-800/30">
+                                {m.tag}
+                              </span>
+                              {selectedModel === m.name && <Check size={13} className="text-emerald-400" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Category 4: Pro / BYOK Models */}
+                    {filterBySearch(proModels).length > 0 && (
+                      <div>
+                        <div className="px-3.5 py-1.5 text-[10px] font-semibold text-amber-400 uppercase tracking-wider flex items-center justify-between bg-[#19150e]">
+                          <span>Pro & BYOK Modeller</span>
+                          <span className="text-[9px] bg-amber-950/60 text-amber-300 border border-amber-800/40 px-1 rounded">Kendi Anahtarın</span>
+                        </div>
+                        {filterBySearch(proModels).map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m.name);
+                              setShowModelDropdown(false);
+                              setModelSearch('');
+                            }}
+                            className={`w-full text-left px-3.5 py-2 text-[12px] hover:bg-[#261f14] transition-colors flex items-center justify-between ${
+                              selectedModel === m.name ? 'bg-[#261f14] text-white font-medium border-l-2 border-amber-400' : 'text-[#cbd5e1]'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#7e8b9f]">{m.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#201a11] text-amber-300 border border-amber-800/30">
+                                {m.tag}
+                              </span>
+                              {selectedModel === m.name && <Check size={13} className="text-amber-400" />}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1006,31 +980,31 @@ export const HomeScreen: React.FC = () => {
                   setShowModelDropdown(false);
                   setShowPermDropdown(false);
                 }}
-                className="flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-2.5 py-1 rounded-full bg-[#151924] hover:bg-[#1e2332] border border-[#273042] transition-all shadow-sm"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-3 py-1 rounded-full bg-[#121624] hover:bg-[#1a2134] border border-[#222c40] transition-colors"
               >
                 <Brain size={11} className="text-purple-400" />
                 <span>Thinking: {thinkingLevel}</span>
-                <ChevronDown size={11} className="text-[#888888]" />
+                <ChevronDown size={11} className="text-[#7e8b9f]" />
               </button>
 
               {showThinkingDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#12141b]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1.5 shadow-2xl z-50">
-                  <div className="px-3 py-1 text-[10px] font-semibold text-[#888888] uppercase tracking-wider">
-                    Düşünme Bütçesi
+                <div className="absolute bottom-full left-0 mb-2 w-48 glass-dropdown rounded-2xl py-1 z-50 animate-fadeIn">
+                  <div className="px-3.5 py-1 text-[10px] font-semibold text-[#7e8b9f] uppercase tracking-wider">
+                    Düşünce Bütçesi
                   </div>
-                  {THINKING_LEVELS.map((lvl) => (
+                  {THINKING_LEVELS.map((level) => (
                     <button
-                      key={lvl}
+                      key={level}
                       onClick={() => {
-                        setThinkingLevel(lvl);
+                        setThinkingLevel(level);
                         setShowThinkingDropdown(false);
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#202534] transition-colors flex items-center justify-between ${
-                        thinkingLevel === lvl ? 'bg-[#202534] text-white font-medium' : 'text-[#cbd5e1]'
+                      className={`w-full text-left px-3.5 py-1.5 text-[12px] hover:bg-[#182032] transition-colors flex items-center justify-between ${
+                        thinkingLevel === level ? 'text-purple-400 font-semibold' : 'text-[#cbd5e1]'
                       }`}
                     >
-                      <span>{lvl}</span>
-                      {thinkingLevel === lvl && <Check size={12} className="text-sky-400" />}
+                      <span>{level}</span>
+                      {thinkingLevel === level && <Check size={12} className="text-purple-400" />}
                     </button>
                   ))}
                 </div>
@@ -1045,17 +1019,17 @@ export const HomeScreen: React.FC = () => {
                   setShowModelDropdown(false);
                   setShowThinkingDropdown(false);
                 }}
-                className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-2.5 py-1 rounded-full bg-[#151924] hover:bg-[#1e2332] border border-[#273042] transition-all shadow-sm"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-[#cbd5e1] hover:text-white px-3 py-1 rounded-full bg-[#121624] hover:bg-[#1a2134] border border-[#222c40] transition-colors"
               >
                 <Shield size={11} className="text-emerald-400" />
                 <span>{permissionMode}</span>
-                <ChevronDown size={11} className="text-[#888888]" />
+                <ChevronDown size={11} className="text-[#7e8b9f]" />
               </button>
 
               {showPermDropdown && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#12141b]/95 backdrop-blur-xl border border-[#2a2f3f] rounded-2xl py-1.5 shadow-2xl z-50">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#888888] uppercase tracking-wider">
-                    Çalıştırma İzin Modu
+                <div className="absolute bottom-full left-0 mb-2 w-56 glass-dropdown rounded-2xl py-1 z-50 animate-fadeIn">
+                  <div className="px-3.5 py-1 text-[10px] font-semibold text-[#7e8b9f] uppercase tracking-wider">
+                    İzin Seviyesi
                   </div>
                   {PERMISSION_MODES.map((mode) => (
                     <button
@@ -1064,12 +1038,15 @@ export const HomeScreen: React.FC = () => {
                         setPermissionMode(mode.id);
                         setShowPermDropdown(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-[12px] hover:bg-[#202534] transition-colors flex flex-col ${
-                        permissionMode === mode.id ? 'bg-[#202534] text-white font-medium' : 'text-[#cbd5e1]'
+                      className={`w-full text-left px-3.5 py-1.5 text-[12px] hover:bg-[#182032] transition-colors flex flex-col ${
+                        permissionMode === mode.id ? 'text-emerald-400 font-semibold' : 'text-[#cbd5e1]'
                       }`}
                     >
-                      <span className="font-medium">{mode.label}</span>
-                      <span className="text-[10px] text-[#888888]">{mode.desc}</span>
+                      <div className="flex items-center justify-between">
+                        <span>{mode.label}</span>
+                        {permissionMode === mode.id && <Check size={12} className="text-emerald-400" />}
+                      </div>
+                      <span className="text-[10px] text-[#7e8b9f] font-normal">{mode.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1078,29 +1055,13 @@ export const HomeScreen: React.FC = () => {
           </div>
 
           {/* Right Action Icons & Send Button */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setInput((p) => p + '@')}
-              className="p-1.5 text-[#888888] hover:text-white hover:bg-[#1e2332] rounded-lg transition-colors"
-              title="Bağlam Ekle (@)"
-            >
-              <span className="text-[13px] font-mono font-semibold">@</span>
-            </button>
-
-            <button
-              onClick={() => setInput((p) => p + '/')}
-              className="p-1.5 text-[#888888] hover:text-white hover:bg-[#1e2332] rounded-lg transition-colors"
-              title="Hızlı Komutlar (/)"
-            >
-              <span className="text-[13px] font-mono font-semibold">/</span>
-            </button>
-
-            <button
-              onClick={toggleVoiceInput}
+              onClick={toggleSpeechRecognition}
               className={`p-1.5 rounded-lg transition-colors ${
                 isListening
-                  ? 'text-red-400 bg-red-950/40 animate-pulse'
-                  : 'text-[#888888] hover:text-white hover:bg-[#1e2332]'
+                  ? 'text-rose-400 bg-rose-950/40 animate-pulse'
+                  : 'text-[#7e8b9f] hover:text-white hover:bg-[#161d2c]'
               }`}
               title="Sesle komut ver"
             >
@@ -1112,8 +1073,8 @@ export const HomeScreen: React.FC = () => {
               disabled={!input.trim() || isGenerating}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                 input.trim() && !isGenerating
-                  ? 'bg-gradient-to-tr from-sky-400 via-sky-500 to-blue-600 text-white shadow-[0_0_12px_rgba(56,189,248,0.5)] hover:shadow-[0_0_18px_rgba(56,189,248,0.7)] hover:scale-105 active:scale-95'
-                  : 'bg-[#1c2230] text-[#4b5563] cursor-not-allowed'
+                  ? 'bg-gradient-to-tr from-sky-400 via-sky-500 to-blue-600 text-white shadow-[0_0_14px_rgba(56,189,248,0.5)] hover:shadow-[0_0_20px_rgba(56,189,248,0.7)] hover:scale-105 active:scale-95'
+                  : 'bg-[#141926] text-[#556070] cursor-not-allowed border border-[#1b2234]'
               }`}
               title="Gönder (Enter)"
             >
@@ -1126,18 +1087,18 @@ export const HomeScreen: React.FC = () => {
   );
 
   return (
-    <main className="flex-1 h-full bg-[#0c0e12] overflow-hidden flex flex-col items-center relative select-text">
-      {/* Background Subtle Antigravity Glow */}
+    <main className="flex-1 h-full bg-[#08090d] overflow-hidden flex flex-col items-center relative select-text">
+      {/* Background Subtle Elytra Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-sky-500/5 blur-[120px] pointer-events-none" />
 
-      {/* IF NO CONVERSATION ACTIVE: Centered Antigravity Hero Studio */}
+      {/* IF NO CONVERSATION ACTIVE: Centered Elytra Studio Home */}
       {!hasMessages ? (
         <div className="flex-1 w-full overflow-y-auto flex items-center justify-center p-4 md:p-6">
           <div className="w-full max-w-[780px] flex flex-col items-center justify-center select-none animate-fadeIn py-4">
             {/* Official Emblem */}
             <div className="mb-5 relative group">
               <div className="absolute -inset-4 bg-gradient-to-r from-sky-500/25 via-purple-500/20 to-emerald-500/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
-              <div className="relative w-20 h-20 rounded-2xl bg-[#131620] border border-[#252b3d] p-3.5 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/50 group-hover:shadow-[0_0_30px_rgba(56,189,248,0.15)]">
+              <div className="relative w-20 h-20 rounded-2xl bg-[#0e121c] border border-[#202738] p-3.5 flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:border-sky-500/50 group-hover:shadow-[0_0_30px_rgba(56,189,248,0.2)]">
                 <ElythraLogo size={60} />
               </div>
             </div>
@@ -1164,16 +1125,16 @@ export const HomeScreen: React.FC = () => {
                     setInput(card.prompt);
                     textareaRef.current?.focus();
                   }}
-                  className="p-3.5 bg-gradient-to-br from-[#12151e]/90 to-[#0e1118]/90 hover:from-[#171b26] hover:to-[#121622] border border-[#202534] hover:border-sky-500/40 rounded-2xl text-left transition-all duration-200 flex items-start gap-3 group shadow-md hover:shadow-sky-950/20 hover:-translate-y-0.5"
+                  className="p-3.5 bg-gradient-to-br from-[#0e121c]/90 to-[#0a0d14]/90 hover:from-[#141a29] hover:to-[#0e121c] border border-[#1b2234] hover:border-sky-500/40 rounded-2xl text-left transition-all duration-200 flex items-start gap-3 group shadow-md hover:shadow-sky-950/20 hover:-translate-y-0.5"
                 >
-                  <div className="p-2.5 rounded-xl bg-[#171b26] border border-[#262c3e] group-hover:border-sky-500/40 group-hover:bg-[#1a2030] transition-colors flex-shrink-0 mt-0.5">
+                  <div className="p-2.5 rounded-xl bg-[#121624] border border-[#222c40] group-hover:border-sky-500/40 group-hover:bg-[#161d30] transition-colors flex-shrink-0 mt-0.5">
                     <card.icon size={16} className={card.iconColor} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-semibold text-[#f1f5f9] group-hover:text-white transition-colors">
                       {card.title}
                     </div>
-                    <div className="text-[11.5px] text-[#828c9f] line-clamp-1 mt-0.5">
+                    <div className="text-[11.5px] text-[#7e8b9f] line-clamp-1 mt-0.5">
                       {card.desc}
                     </div>
                   </div>
@@ -1182,19 +1143,19 @@ export const HomeScreen: React.FC = () => {
             </div>
 
             {/* Bottom Minimalist Status Line */}
-            <div className="mt-8 text-[11px] font-mono text-[#616878] flex items-center gap-2">
-              <span className="text-[#8e96a4]">Elythra Code</span>
+            <div className="mt-8 text-[11px] font-mono text-[#5a6578] flex items-center gap-2">
+              <span className="text-[#8b95a5]">Elytra Code</span>
               <span>·</span>
               <span>Multi-Model AI Engine</span>
               <span>·</span>
-              <span>BYOK Ready</span>
+              <span>GC Shield Protected</span>
               <span>·</span>
-              <span className="text-emerald-400 font-medium">Autonomous Engine</span>
+              <span className="text-emerald-400 font-medium">Autonomous Studio</span>
             </div>
           </div>
         </div>
       ) : (
-        /* IF CONVERSATION ACTIVE: Standard Antigravity Stream with Pinned Bottom Capsule */
+        /* IF CONVERSATION ACTIVE: Standard Stream with Pinned Bottom Capsule */
         <div className="w-full max-w-[840px] flex-1 flex flex-col h-full overflow-hidden">
           {/* Chat Message Stream */}
           <div className="flex-1 space-y-6 py-4 overflow-y-auto px-3">
@@ -1206,7 +1167,7 @@ export const HomeScreen: React.FC = () => {
                 }`}
               >
                 {m.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#181c26] to-[#12151e] border border-[#262c3e] flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg shadow-black/30">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#141a29] to-[#0e121c] border border-[#202738] flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg">
                     <ElythraLogo size={20} />
                   </div>
                 )}
@@ -1214,25 +1175,25 @@ export const HomeScreen: React.FC = () => {
                 <div
                   className={`max-w-[760px] rounded-2xl p-4 transition-all shadow-xl group ${
                     m.role === 'user'
-                      ? 'bg-gradient-to-br from-[#1a2336] via-[#141b2a] to-[#101522] border border-sky-500/25 text-[#f8fafc] rounded-tr-sm shadow-sky-950/20'
-                      : 'bg-[#0f1218] border border-[#202534] text-[#e2e8f0] rounded-tl-sm hover:border-[#2b3348] shadow-black/40'
+                      ? 'bg-gradient-to-br from-[#162034] via-[#121929] to-[#0e1320] border border-sky-500/25 text-[#f8fafc] rounded-tr-sm shadow-sky-950/20'
+                      : 'bg-[#0d1017] border border-[#1b2234] text-[#e2e8f0] rounded-tl-sm hover:border-[#252f46] shadow-black/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c2230] select-none text-[11px] text-[#717888]">
+                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#181d2a] select-none text-[11px] text-[#64748b]">
                     <div className="flex items-center gap-2">
                       {m.role === 'user' ? (
                         <span className="font-semibold text-sky-300 flex items-center gap-1.5">
                           Siz
                         </span>
                       ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161c28] border border-[#252f44] text-sky-300 font-medium text-[11px] shadow-sm">
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#121624] border border-[#202738] text-sky-300 font-medium text-[11px] shadow-sm">
                           <Sparkles size={11} className="text-sky-400" />
                           <span className="truncate max-w-[200px]">{m.model || selectedModel}</span>
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-[#717888] px-1.5 py-0.5 rounded bg-[#141822]/60">
+                      <span className="font-mono text-[10px] text-[#64748b] px-1.5 py-0.5 rounded bg-[#101420]/60">
                         {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <button
@@ -1241,7 +1202,7 @@ export const HomeScreen: React.FC = () => {
                           setCopiedMsgId(m.id);
                           setTimeout(() => setCopiedMsgId(null), 2000);
                         }}
-                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-all p-1 rounded-md hover:bg-[#1f2636] text-[#717888]"
+                        className="opacity-0 group-hover:opacity-100 hover:text-white transition-all p-1 rounded-md hover:bg-[#182032] text-[#64748b]"
                         title="İçeriği Kopyala"
                       >
                         {copiedMsgId === m.id ? (
@@ -1263,7 +1224,7 @@ export const HomeScreen: React.FC = () => {
                 </div>
 
                 {m.role === 'user' && (
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#1f273c] to-[#151c2c] border border-sky-500/30 flex items-center justify-center text-sky-300 flex-shrink-0 mt-0.5 shadow-md">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#1a2336] to-[#121826] border border-sky-500/30 flex items-center justify-center text-sky-300 flex-shrink-0 mt-0.5 shadow-md">
                     <User size={15} />
                   </div>
                 )}
@@ -1273,12 +1234,12 @@ export const HomeScreen: React.FC = () => {
             {/* Live Streaming Assistant Message */}
             {streamingContent && (
               <div className="flex gap-3 text-[13.5px] leading-relaxed justify-start animate-fadeIn">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#181c26] to-[#12151e] border border-sky-500/30 flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg shadow-sky-500/10">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#141a29] to-[#0e121c] border border-sky-500/30 flex items-center justify-center text-white flex-shrink-0 mt-0.5 overflow-hidden shadow-lg shadow-sky-500/10">
                   <ElythraLogo size={20} />
                 </div>
-                <div className="max-w-[760px] rounded-2xl p-4 bg-[#0f1218] border border-sky-500/30 text-[#e2e8f0] shadow-[0_0_25px_rgba(56,189,248,0.06)] rounded-tl-sm">
-                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#1c2230] select-none text-[11px] text-[#717888]">
-                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161c28] border border-[#252f44] text-sky-300 font-medium text-[11px]">
+                <div className="max-w-[760px] rounded-2xl p-4 bg-[#0d1017] border border-sky-500/30 text-[#e2e8f0] shadow-[0_0_25px_rgba(56,189,248,0.06)] rounded-tl-sm">
+                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[#181d2a] select-none text-[11px] text-[#64748b]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#121624] border border-[#202738] text-sky-300 font-medium text-[11px]">
                       <Sparkles size={11} className="text-sky-400 animate-spin" style={{ animationDuration: '3s' }} />
                       <span className="truncate max-w-[200px]">{selectedModel}</span>
                     </div>
@@ -1295,7 +1256,7 @@ export const HomeScreen: React.FC = () => {
           </div>
 
           {/* Bottom Fixed Prompt Capsule */}
-          <div className="p-3 bg-[#0c0e12]/95 backdrop-blur-md border-t border-[#1c2230]">
+          <div className="p-3 bg-[#08090d]/95 backdrop-blur-md border-t border-[#181d2a]">
             {renderDiffBar()}
             {renderPromptCapsule()}
           </div>

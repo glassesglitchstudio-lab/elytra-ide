@@ -53,9 +53,9 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
   const getFileIcon = (item: FileItem) => {
     if (item.isDirectory) {
       return expanded[item.path] ? (
-        <FolderOpen size={14} className="text-[#8a8a8a] flex-shrink-0" />
+        <FolderOpen size={14} className="text-sky-400 flex-shrink-0" />
       ) : (
-        <Folder size={14} className="text-[#8a8a8a] flex-shrink-0" />
+        <Folder size={14} className="text-[#7e8b9f] flex-shrink-0" />
       );
     }
     const ext = item.name.split('.').pop()?.toLowerCase();
@@ -64,15 +64,21 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
       case 'tsx':
       case 'js':
       case 'jsx':
+        return <FileCode size={14} className="text-sky-400 flex-shrink-0" />;
       case 'py':
       case 'rs':
+      case 'cpp':
+      case 'c':
+        return <FileCode size={14} className="text-amber-400 flex-shrink-0" />;
+      case 'json':
+      case 'yaml':
+      case 'yml':
+        return <FileJson size={14} className="text-emerald-400 flex-shrink-0" />;
       case 'html':
       case 'css':
-        return <FileCode size={14} className="text-[#8a8a8a] flex-shrink-0" />;
-      case 'json':
-        return <FileJson size={14} className="text-[#8a8a8a] flex-shrink-0" />;
+        return <FileCode size={14} className="text-purple-400 flex-shrink-0" />;
       default:
-        return <FileText size={14} className="text-[#8a8a8a] flex-shrink-0" />;
+        return <FileText size={14} className="text-[#7e8b9f] flex-shrink-0" />;
     }
   };
 
@@ -140,10 +146,10 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
             onClick={() => toggleExpand(node)}
             onContextMenu={(e) => handleContextMenu(e, node)}
             style={{ paddingLeft: `${level * 12 + 8}px` }}
-            className="flex items-center gap-1.5 py-1 pr-2 text-[13px] text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1a1a1a] rounded-sm cursor-pointer select-none transition-colors"
+            className="flex items-center gap-1.5 py-1 pr-2 text-[12.5px] text-[#cbd5e1] hover:text-white hover:bg-[#121724] rounded-lg cursor-pointer select-none transition-colors"
           >
             {node.isDirectory ? (
-              <span className="w-3 flex items-center justify-center">
+              <span className="w-3 flex items-center justify-center text-[#64748b]">
                 {isExp ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
               </span>
             ) : (
@@ -162,26 +168,11 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
   };
 
   return (
-    <div className="w-64 h-full bg-[#0f0f0f] border-r border-[#1f1f1f] flex flex-col select-none flex-shrink-0">
-      <div className="h-9 px-3 border-b border-[#1f1f1f] flex items-center justify-between">
-        <span className="text-[11px] font-semibold tracking-wider uppercase text-[#8a8a8a] truncate">
-          {activeProject?.name || 'EXPLORER'}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => activeProject && handleCreateFile(activeProject.path)}
-            className="p-1 text-[#8a8a8a] hover:text-[#e5e5e5] hover:bg-[#1f1f1f] rounded"
-            title="New File"
-          >
-            <Plus size={13} />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto py-2">
+    <div className="w-full flex flex-col select-none">
+      <div className="overflow-y-auto py-1">
         {items.length === 0 ? (
-          <div className="p-4 text-center text-[12px] text-[#8a8a8a]">
-            Empty workspace
+          <div className="p-4 text-center text-[12px] text-[#64748b]">
+            Boş çalışma alanı
           </div>
         ) : (
           renderTree(items)
@@ -192,53 +183,53 @@ export const FileTree: React.FC<FileTreeProps> = ({ items }) => {
       {contextMenu && (
         <div
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed bg-[#161616] border border-[#262626] rounded-xl py-1 shadow-2xl z-50 w-52 text-[12px]"
+          className="fixed glass-dropdown rounded-2xl py-1.5 z-50 w-56 text-[12.5px] animate-fadeIn"
           onMouseLeave={() => setContextMenu(null)}
         >
           {contextMenu.item.isDirectory ? (
             <>
               <button
                 onClick={() => handleCreateFile(contextMenu.item.path)}
-                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+                className="w-full text-left px-3.5 py-1.5 text-[#e2e8f0] hover:bg-[#182032] flex items-center gap-2 transition-colors"
               >
-                <Plus size={13} /> New File
+                <Plus size={13} className="text-sky-400" /> New File
               </button>
               <button
                 onClick={() => handleCreateFolder(contextMenu.item.path)}
-                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+                className="w-full text-left px-3.5 py-1.5 text-[#e2e8f0] hover:bg-[#182032] flex items-center gap-2 transition-colors"
               >
-                <Folder size={13} /> New Folder
+                <Folder size={13} className="text-sky-400" /> New Folder
               </button>
-              <div className="my-1 border-t border-[#1f1f1f]" />
+              <div className="my-1 border-t border-[#181d2a]" />
             </>
           ) : (
             <>
               <button
                 onClick={() => handleAIFileAction(contextMenu.item, 'explain')}
-                className="w-full text-left px-3 py-1.5 text-sky-400 hover:bg-[#2a2a2a] flex items-center gap-2 font-medium"
+                className="w-full text-left px-3.5 py-1.5 text-sky-400 hover:bg-[#182032] flex items-center gap-2 font-medium transition-colors"
               >
                 <Sparkles size={13} /> Elytra ile Açıkla
               </button>
               <button
                 onClick={() => handleAIFileAction(contextMenu.item, 'test')}
-                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+                className="w-full text-left px-3.5 py-1.5 text-[#e2e8f0] hover:bg-[#182032] flex items-center gap-2 transition-colors"
               >
-                <FlaskConical size={13} /> Birim Testleri Üret
+                <FlaskConical size={13} className="text-purple-400" /> Birim Testleri Üret
               </button>
               <button
                 onClick={() => handleAIFileAction(contextMenu.item, 'refactor')}
-                className="w-full text-left px-3 py-1.5 text-[#e5e5e5] hover:bg-[#2a2a2a] flex items-center gap-2"
+                className="w-full text-left px-3.5 py-1.5 text-[#e2e8f0] hover:bg-[#182032] flex items-center gap-2 transition-colors"
               >
-                <Wand2 size={13} /> Kodu Optimize Et
+                <Wand2 size={13} className="text-emerald-400" /> Kodu Optimize Et
               </button>
-              <div className="my-1 border-t border-[#1f1f1f]" />
+              <div className="my-1 border-t border-[#181d2a]" />
             </>
           )}
           <button
             onClick={() => handleDelete(contextMenu.item.path)}
-            className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-[#2a2a2a] flex items-center gap-2"
+            className="w-full text-left px-3.5 py-1.5 text-rose-400 hover:bg-rose-950/40 flex items-center gap-2 transition-colors"
           >
-            <Trash2 size={13} /> Delete
+            <Trash2 size={13} /> Sil
           </button>
         </div>
       )}
